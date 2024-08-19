@@ -1,5 +1,7 @@
 #![feature(let_chains)]
 
+use state::piece::Position;
+
 mod state;
 
 /// Renders a chess board for debugging purposes.
@@ -30,18 +32,24 @@ fn render_board(board: state::board::Board) {
 fn main() {
     let board = state::board::Board::new("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap();
 
-    let position = state::piece::Position::from_code("a1").expect("bruh");
-    let mut bitboard_idx = 0;
+    let position = state::piece::Position::from_code("e4").expect("bruh");
+    let square = (position.rank * 8 + position.file) as usize;
 
-    board.bishop_blockers
-        [(position.rank * 8 + position.file) as usize]
-        [bitboard_idx]
-        .render_bitboard(position);
+    let mut blocker_bitboard = state::board::Bitboard::new(0);
+    // blocker_bitboard.set_bit(state::piece::Position::from_code("e3").unwrap());
+    // blocker_bitboard.set_bit(state::piece::Position::from_code("g4").unwrap());
+    // blocker_bitboard.set_bit(state::piece::Position::from_code("b4").unwrap());
+    // blocker_bitboard.set_bit(Position::from_code("d5").unwrap());
+    // blocker_bitboard.set_bit(Position::from_code("f5").unwrap());
+    // blocker_bitboard.set_bit(Position::from_code("g6").unwrap());
+    // blocker_bitboard.set_bit(Position::from_code("f3").unwrap());
+    // blocker_bitboard.set_bit(Position::from_code("c2").unwrap());
 
-    board.sliding_bishop_bitboard
-        [(position.rank * 8 + position.file) as usize]
-        [bitboard_idx]
-        .render_bitboard(position);
+    blocker_bitboard.render_bitboard(position);
+
+    board.sliding_bishop_bitboard[square]
+    [state::board::Board::generate_magic_index(&blocker_bitboard, position, state::piece::PieceType::Bishop) as usize]
+    .render_bitboard(position);
 
     // render_attack_bitboard(
     //     position,

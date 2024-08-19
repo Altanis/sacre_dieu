@@ -1,3 +1,6 @@
 # matrix mate
 
-A UCI-compliant Chess engine.
+## Features
+- FEN Parser
+- Bitboards
+- Magic Bitboards

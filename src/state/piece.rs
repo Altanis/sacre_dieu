@@ -28,7 +28,6 @@ impl TryFrom<u32> for PieceType {
     }
 }
 
-
 impl PieceType {
     /// Generates an index from the piece type.
     pub fn to_index(&self) -> usize {
