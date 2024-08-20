@@ -1,5 +1,6 @@
-/// A type representing a 2D array representation of the chess board.
-pub type ChessBoard = [[Option<Piece>; 8]; 8];
+use std::ops::Not;
+
+use super::{board::{AttackBitboard, Board, PositionalBitboard}, consts::{BISHOP_MAGICS, MAX_LEGAL_MOVES, ROOK_MAGICS}};
 
 /// An enum representing the type of chess piece.
 #[derive(Debug, Clone, PartialEq, strum_macros::EnumCount, strum_macros::EnumIter)]
@@ -62,6 +63,17 @@ impl TryFrom<u32> for PieceColor {
     }
 }
 
+impl Not for PieceColor {
+    type Output = PieceColor;
+
+    fn not(self) -> Self::Output {
+        match self {
+            PieceColor::White => PieceColor::Black,
+            PieceColor::Black => PieceColor::White
+        }
+    }
+}
+
 impl PieceColor {
     /// Generates an index from the color.
     pub fn to_index(&self) -> usize {
@@ -81,34 +93,50 @@ pub struct Position {
 
 impl Position {
     /// Instantiates a new position.
-    /// 
-    /// Returns an error if the position is out of bounds.
-    pub fn new(rank: u8, file: u8) -> Result<Position, ()> {
+    pub fn new(rank: u8, file: u8) -> Position {
         if rank > 7 || file > 7 {
-            return Err(());
+            panic!("invalid position {} {}", rank, file);
         }
 
-        Ok(Position { rank, file })
+        Position { rank, file }
+    }
+
+    /// Whether or not a position is valid.
+    pub fn is_valid(rank: u8, file: u8) -> bool {
+        !(rank > 7 || file > 7)
+    }
+
+    /// Returns the square of the position.
+    pub fn square(&self) -> u8 {
+        self.rank * 8 + self.file
+    }
+
+    /// Returns a transformed position.
+    pub fn transform(&self, offset_rank: i8, offset_file: i8) -> Self {
+        Position::new((self.rank as i8 + offset_rank) as u8, (self.file as i8 + offset_file) as u8)
     }
 
     /// Converts a position to a square code.
-    pub fn to_code(&self) -> String {
+    pub fn get_code(&self) -> String {
         format!("{}{}", (self.file + b'a') as char, self.rank + 1)
     }
 
     /// Instantiates a new position from a square code.
-    /// 
-    /// Returns an error if the code is invalid or the position is out of bounds.
-    pub fn from_code(code: &str) -> Result<Position, ()> {
+    pub fn from_code(code: &str) -> Position {
         if code.len() != 2 {
-            return Err(());
+            panic!("invalid code");
         }
 
-        let rank = code.chars().nth(1).ok_or(())?.to_digit(10).ok_or(())? as u8 - 1;
+        let rank = code.chars().nth(1).expect("Code doesn't have rank").to_digit(10).expect("Rank can't be converted to number") as u8 - 1;
         let file = code.chars().nth(0).expect("Code doesn't have file") as u8 - b'a';
 
         Position::new(rank, file)
     }
+
+    /// Whether or not a code is valid.
+    pub fn is_code_valid(code: &str) -> bool {
+        code.len() == 2 && code.chars().nth(1).and_then(|c| c.to_digit(10)).is_some()
+    }    
 }
 
 /// A struct representing a chess piece.
@@ -125,6 +153,128 @@ impl Piece {
     pub fn new(piece_type: PieceType, piece_color: PieceColor) -> Piece {
         Piece { piece_type, piece_color }
     }
+
+    /// Generates a list of moves for the piece.
+    pub fn generate_moves(&self, board: &mut Board, position: Position) -> Vec<Move> {
+        let mut moves = Vec::with_capacity(MAX_LEGAL_MOVES);
+
+        match self.piece_type {
+            PieceType::Pawn => {
+                let enemy_bitboard = &board.positional_bitboard[(!self.piece_color.clone()).to_index()];
+                
+                let direction = if self.piece_color == PieceColor::White { 1 } else { -1 };
+
+                let can_double_push = if self.piece_color == PieceColor::White { position.rank == 2 } else { position.rank == 7 };
+                let (can_capture_left, can_capture_right) = (
+                    enemy_bitboard.get_bit(position.transform(direction * 1, -1)),
+                    enemy_bitboard.get_bit(position.transform(direction * 1, 1)),
+                );
+
+                moves.push(Move::new(position, position.transform(direction * 1, 0), MoveFlags::None));
+
+                if can_double_push {
+                    moves.push(Move::new(position, position.transform(direction * 2, 0), MoveFlags::DoublePush));
+                }
+
+                if can_capture_left {
+                    moves.push(Move::new(position, position.transform(direction * 1, -1), MoveFlags::None));
+                }
+
+                if can_capture_right {
+                    moves.push(Move::new(position, position.transform(direction * 1, 1), MoveFlags::None));
+                }
+            },
+            PieceType::Knight => {
+                let mask = &board.attack_bitboard[self.piece_type.to_index()][position.square() as usize];
+                for rank in 0..8 {
+                    for file in 0..8 {
+                        let new_pos = Position::new(rank, file);
+
+                        if mask.get_bit(new_pos) {
+                            moves.push(Move::new(position, new_pos, MoveFlags::None));
+                        }
+                    }
+                }
+            },
+            PieceType::Bishop => {
+                let magic = &BISHOP_MAGICS[position.square() as usize];
+                let enemy_bitboard = &board.positional_bitboard[(!self.piece_color.clone()).to_index()];
+                let mask = &board.sliding_bishop_bitboard[Board::generate_magic_index(magic, enemy_bitboard)];
+
+                for rank in 0..8 {
+                    for file in 0..8 {
+                        let new_pos = Position::new(rank, file);
+
+                        if mask.get_bit(new_pos) {
+                            moves.push(Move::new(position, new_pos, MoveFlags::None));
+                        }
+                    }
+                }
+            },
+            PieceType::Rook => {
+                let magic = &ROOK_MAGICS[position.square() as usize];
+                let enemy_bitboard = &board.positional_bitboard[(!self.piece_color.clone()).to_index()];
+                let mask = &board.sliding_rook_bitboard[Board::generate_magic_index(magic, enemy_bitboard)];
+
+                for rank in 0..8 {
+                    for file in 0..8 {
+                        let new_pos = Position::new(rank, file);
+
+                        if mask.get_bit(new_pos) {
+                            moves.push(Move::new(position, new_pos, MoveFlags::None));
+                        }
+                    }
+                }
+            },
+            PieceType::Queen => {
+                {
+                    let magic = &BISHOP_MAGICS[position.square() as usize];
+                    let enemy_bitboard = &board.positional_bitboard[(!self.piece_color.clone()).to_index()];
+                    let mask = &board.sliding_bishop_bitboard[Board::generate_magic_index(magic, enemy_bitboard)];
+    
+                    for rank in 0..8 {
+                        for file in 0..8 {
+                            let new_pos = Position::new(rank, file);
+    
+                            if mask.get_bit(new_pos) {
+                                moves.push(Move::new(position, new_pos, MoveFlags::None));
+                            }
+                        }
+                    }    
+                }
+
+                {
+                    let magic = &ROOK_MAGICS[position.square() as usize];
+                    let enemy_bitboard = &board.positional_bitboard[(!self.piece_color.clone()).to_index()];
+                    let mask = &board.sliding_rook_bitboard[Board::generate_magic_index(magic, enemy_bitboard)];
+    
+                    for rank in 0..8 {
+                        for file in 0..8 {
+                            let new_pos = Position::new(rank, file);
+    
+                            if mask.get_bit(new_pos) {
+                                moves.push(Move::new(position, new_pos, MoveFlags::None));
+                            }
+                        }
+                    }
+                }
+            },
+            PieceType::King => {
+                let mask = &board.attack_bitboard[self.piece_type.to_index()][position.square() as usize];
+                for rank in 0..8 {
+                    for file in 0..8 {
+                        let new_pos = Position::new(rank, file);
+
+                        if mask.get_bit(new_pos) {
+                            moves.push(Move::new(position, new_pos, MoveFlags::None));
+                        }
+                    }
+                }
+            }
+        }
+
+        moves
+    }
 }
 
 /// An enumeration of different types of castle rights.
@@ -138,24 +288,36 @@ pub enum CastleRights {
 }
 
 /// A structure representing a move.
+#[derive(Debug)]
 pub struct Move {
     /// The position the piece is moving from.
-    pub from: Position,
+    pub initial: Position,
     /// The position the piece is moving to.
-    pub to: Position,
+    pub end: Position,
     /// Any additional metadata with the move.
     pub metadata: MoveFlags
 }
 
 /// An enumeration of different move actions.
+#[derive(Debug)]
 pub enum MoveFlags {
     None             = 0,
-    Capture          = 1,
-    Castling         = 2,
-    DoublePush       = 4,
-    EnPassant        = 8,
-    KnightPromotion  = 16,
-    BishopPromotion  = 32,
-    RookPromotion    = 64,
-    QueenPromotion   = 128
+    Castling         = 1 << 0,
+    DoublePush       = 1 << 1,
+    EnPassant        = 1 << 2,
+    KnightPromotion  = 1 << 3,
+    BishopPromotion  = 1 << 4,
+    RookPromotion    = 1 << 5,
+    QueenPromotion   = 1 << 6
+}
+
+impl Move {
+    /// Creates a new move.
+    pub fn new(initial: Position, end: Position, metadata: MoveFlags) -> Self {
+        Move {
+            initial,
+            end,
+            metadata
+        }
+    }
 }

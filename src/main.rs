@@ -1,11 +1,11 @@
 #![feature(let_chains)]
 
-use state::piece::Position;
+use state::{consts::ROOK_MAGICS, piece::PieceType};
 
 mod state;
 
 /// Renders a chess board for debugging purposes.
-fn render_board(board: state::board::Board) {
+fn render_board(board: &state::board::Board) {
     for row in board.board.iter() {
         for cell in row.iter() {
             print!("| ");
@@ -30,32 +30,36 @@ fn render_board(board: state::board::Board) {
 }
 
 fn main() {
-    let board = state::board::Board::new("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap();
+    std::env::set_var("RUST_BACKTRACE", "1");
 
-    let position = state::piece::Position::from_code("e4").expect("bruh");
-    let square = (position.rank * 8 + position.file) as usize;
+    let board = state::board::Board::new("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+
+    let position = state::piece::Position::from_code("g8");
+    let square = position.square() as usize;
 
     let mut blocker_bitboard = state::board::Bitboard::new(0);
-    // blocker_bitboard.set_bit(state::piece::Position::from_code("e3").unwrap());
-    // blocker_bitboard.set_bit(state::piece::Position::from_code("g4").unwrap());
-    // blocker_bitboard.set_bit(state::piece::Position::from_code("b4").unwrap());
-    // blocker_bitboard.set_bit(Position::from_code("d5").unwrap());
-    // blocker_bitboard.set_bit(Position::from_code("f5").unwrap());
-    // blocker_bitboard.set_bit(Position::from_code("g6").unwrap());
-    // blocker_bitboard.set_bit(Position::from_code("f3").unwrap());
-    // blocker_bitboard.set_bit(Position::from_code("c2").unwrap());
+    // blocker_bitboard.set_bit(state::piece::Position::from_code("e3"));
+    // blocker_bitboard.set_bit(state::piece::Position::from_code("f4"));
+    // blocker_bitboard.set_bit(state::piece::Position::from_code("e5"));
+    blocker_bitboard.set_bit(state::piece::Position::from_code("d4"));
+    // blocker_bitboard.set_bit(Position::from_code("d5"));
+    // blocker_bitboard.set_bit(Position::from_code("f5"));
+    // blocker_bitboard.set_bit(Position::from_code("g6"));
+    // blocker_bitboard.set_bit(state::piece::Position::from_code("b1"));
 
-    blocker_bitboard.render_bitboard(position);
+    // blocker_bitboard.render_bitboard(position);
 
-    board.sliding_bishop_bitboard[square]
-    [state::board::Board::generate_magic_index(&blocker_bitboard, position, state::piece::PieceType::Bishop) as usize]
+    board.attack_bitboard[PieceType::Rook.to_index() - 2][square].render_bitboard(position);
+
+    board.sliding_rook_bitboard
+    [state::board::Board::generate_magic_index(&ROOK_MAGICS[square], &blocker_bitboard)]
     .render_bitboard(position);
 
     // render_attack_bitboard(
     //     position,
     //     board.attack_bitboard
-    //         [state::piece::PieceType::Pawn.to_index() - 1]
-    //         [(position.rank * 8 + position.file) as usize]
+    //         [state::piece::PieceType::Pawn.to_index()]
+    //         [position.square() as usize]
     //         .clone()
     // );
 
@@ -65,7 +69,7 @@ fn main() {
     //     position,
     //     board.attack_bitboard
     //         [0]
-    //         [(position.rank * 8 + position.file) as usize]
+    //         [position.square() as usize]
     //         .clone()
     // );
 }
