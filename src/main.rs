@@ -1,6 +1,8 @@
 #![feature(let_chains)]
+#![feature(string_remove_matches)]
 
-use state::{consts::ROOK_MAGICS, piece::PieceType};
+
+use state::consts::{BISHOP_MAGICS, BISHOP_MASKS, ROOK_MAGICS};
 
 mod state;
 
@@ -32,44 +34,33 @@ fn render_board(board: &state::board::Board) {
 fn main() {
     std::env::set_var("RUST_BACKTRACE", "1");
 
-    let board = state::board::Board::new("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    let board = state::board::Board::new("8/6k2/8/8/8/8/8/8 w - - 0 1");
+
+    // let mut file = std::fs::File::create("rook.txt").expect("couldnt make file");
+    // let mut shit = "[".to_string();
+    // for bitboard in board.sliding_rook_bitboard.iter() {
+    //     let mut str = bitboard.serialize(serde_json::value::Serializer).expect("couldnt serialize").to_string();
+    //     str.remove_matches('"');
+
+    //     shit += format!("{}, ", str).as_str();
+    // }
+
+    // shit += "]";
+
+    // file.write_all(shit.as_bytes()).expect("couldnt write");
 
     let position = state::piece::Position::from_code("g8");
-    let square = position.square() as usize;
 
     let mut blocker_bitboard = state::board::Bitboard::new(0);
-    // blocker_bitboard.set_bit(state::piece::Position::from_code("e3"));
-    // blocker_bitboard.set_bit(state::piece::Position::from_code("f4"));
-    // blocker_bitboard.set_bit(state::piece::Position::from_code("e5"));
-    blocker_bitboard.set_bit(state::piece::Position::from_code("d4"));
-    // blocker_bitboard.set_bit(Position::from_code("d5"));
-    // blocker_bitboard.set_bit(Position::from_code("f5"));
-    // blocker_bitboard.set_bit(Position::from_code("g6"));
-    // blocker_bitboard.set_bit(state::piece::Position::from_code("b1"));
+    blocker_bitboard.set_bit(state::piece::Position::from_code("d5"));
+    blocker_bitboard.render_bitboard(position);
 
-    // blocker_bitboard.render_bitboard(position);
+    let magic = &BISHOP_MAGICS[position.square()];
+    let bitboard = BISHOP_MASKS[state::board::Board::generate_magic_index(magic, &blocker_bitboard)];
+    bitboard.render_bitboard(position);
 
-    board.attack_bitboard[PieceType::Rook.to_index() - 2][square].render_bitboard(position);
-
-    board.sliding_rook_bitboard
-    [state::board::Board::generate_magic_index(&ROOK_MAGICS[square], &blocker_bitboard)]
-    .render_bitboard(position);
-
-    // render_attack_bitboard(
-    //     position,
-    //     board.attack_bitboard
-    //         [state::piece::PieceType::Pawn.to_index()]
-    //         [position.square() as usize]
-    //         .clone()
-    // );
-
-    // println!();
-
-    // render_attack_bitboard(
-    //     position,
-    //     board.attack_bitboard
-    //         [0]
-    //         [position.square() as usize]
-    //         .clone()
-    // );
+    // let position = state::piece::Position::from_code("g8");
+    // let time = std::time::Instant::now();
+    // println!("{}", position.is_under_attack(&board, state::piece::PieceColor::Black));
+    // dbg!(time.elapsed());
 }

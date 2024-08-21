@@ -1,19 +1,19 @@
+use std::{collections::BTreeSet, ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not}};
+
 use strum::EnumCount;
-use super::{consts::{MagicEntry, BISHOP_MAGICS, BISHOP_TABLE_SIZE, MAX_LEGAL_MOVES, PIECE_MAP, PIECE_OFFSETS, ROOK_MAGICS, ROOK_TABLE_SIZE}, piece::*};
+use super::{consts::{MagicEntry, BISHOP_MAGICS, BISHOP_TABLE_SIZE, MAX_LEGAL_MOVES, PIECE_MAP, ROOK_MAGICS, ROOK_TABLE_SIZE}, piece::*};
 use colored::Colorize;
 
 /// A type representing a 2D array representation of the chess board.
 pub type ChessBoard = [[Option<Piece>; 8]; 8];
 /// A type representing an array of bitboards for tracking piece/color state.
 pub type PositionalBitboard = [Bitboard; PieceType::COUNT + PieceColor::COUNT];
-/// A type representing the attack patterns of every piece on every square.
-pub type AttackBitboard = [[Bitboard; 64]; PieceType::COUNT + 1];
 
 /// A bitboard representing the presence of a specific state on the chess board.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub struct Bitboard {
     /// The underlying u64 board.
-    board: u64
+    pub board: u64
 }
 
 impl Bitboard {
@@ -65,15 +65,70 @@ impl Bitboard {
     }
 }
 
-/// A structure representing the state of an entire chess board.
-#[derive(Debug)]
-pub struct Board {
-    pub positional_bitboard: PositionalBitboard,
-    pub attack_bitboard: AttackBitboard,
+impl serde::Serialize for Bitboard {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: serde::Serializer {
+        serializer.serialize_str(&format!("Bitboard {{ board: {} }}", self.board))
+    }
+}
 
+impl BitOr for Bitboard {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self {
+        Bitboard { board: self.board | rhs.board }
+    }
+}
+
+impl BitAnd for Bitboard {
+    type Output = Self;
+
+    fn bitand(self, rhs: Self) -> Self {
+        Bitboard { board: self.board & rhs.board }
+    }
+}
+
+impl BitXor for Bitboard {
+    type Output = Self;
+
+    fn bitxor(self, rhs: Self) -> Self {
+        Bitboard { board: self.board ^ rhs.board }
+    }
+}
+
+impl BitOrAssign for Bitboard {
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.board |= rhs.board;
+    }
+}
+
+impl BitAndAssign for Bitboard {
+    fn bitand_assign(&mut self, rhs: Self) {
+        self.board &= rhs.board;
+    }
+}
+
+impl BitXorAssign for Bitboard {
+    fn bitxor_assign(&mut self, rhs: Self) {
+        self.board ^= rhs.board;
+    }
+}
+
+impl Not for Bitboard {
+    type Output = Self;
+
+    fn not(self) -> Self {
+        Bitboard { board: !self.board }
+    }
+}
+
+/// A structure representing the state of an entire chess board.
+#[derive(Debug, Clone)]
+pub struct Board {
+    pub piece_bitboard: PositionalBitboard,
     pub sliding_rook_bitboard: [Bitboard; ROOK_TABLE_SIZE],
     pub sliding_bishop_bitboard: [Bitboard; BISHOP_TABLE_SIZE],
-
     pub castle_rights: [CastleRights; 2],
     pub side_to_move: PieceColor,
     pub en_passant: Option<Position>,
@@ -84,8 +139,7 @@ pub struct Board {
 impl Board {
     pub fn default() -> Self {
         Board {
-            positional_bitboard: std::array::from_fn(|_| Bitboard::default()),
-            attack_bitboard: std::array::from_fn(|_| std::array::from_fn(|_| Bitboard::default())),
+            piece_bitboard: std::array::from_fn(|_| Bitboard::default()),
             sliding_rook_bitboard: std::array::from_fn(|_| Bitboard::default()),
             sliding_bishop_bitboard: std::array::from_fn(|_| Bitboard::default()),
             castle_rights: std::array::from_fn(|_| CastleRights::default()),
@@ -100,7 +154,6 @@ impl Board {
     /// Returns an error if the FEN is invalid.
     pub fn new(fen: &str) -> Board {
         let mut chess_board = Board::default();
-        chess_board.compute_attack_bitboards();
         chess_board.compute_sliding_bitboards();
 
         let (mut rank, mut file) = (7_u8, 0_u8);
@@ -132,8 +185,8 @@ impl Board {
                     let piece_type = PIECE_MAP.get(&char.to_ascii_lowercase()).expect("").clone();
                     chess_board.board[rank as usize][file as usize] = Some(Piece::new(piece_type.clone(), piece_color.clone()));
 
-                    chess_board.positional_bitboard[piece_type.to_index()].set_bit(Position::new(rank, file));
-                    chess_board.positional_bitboard[piece_color.to_index()].set_bit(Position::new(rank, file));
+                    chess_board.piece_bitboard[piece_type.to_index()].set_bit(Position::new(rank, file));
+                    chess_board.piece_bitboard[piece_color.to_index()].set_bit(Position::new(rank, file));
 
                     file += 1;
                 }
@@ -163,52 +216,127 @@ impl Board {
         chess_board
     }
 
-    /// Generates all possible moves for a given piece.
-    pub fn generate_moves(&mut self, depth: u8) -> Vec<Move> {
+    /// Returns all occupied pieces on the board.
+    pub fn occupied(&self) -> Bitboard {
+        self.piece_bitboard[PieceColor::White.to_index()] | self.piece_bitboard[PieceColor::Black.to_index()]
+    }
+        
+    /// Generates all legal moves for a given piece.
+    pub fn generate_moves(&mut self) -> Vec<Move> {
         let mut moves = Vec::with_capacity(MAX_LEGAL_MOVES);
 
         for i in 0..8 {
             for j in 0..8 {
-                if let Some(p) = self.board[i][j].clone() {
+                if let Some(p) = self.board[i][j].clone() && p.piece_color == self.side_to_move {
                     moves.extend(p.generate_moves(self, Position::new(i as u8, j as u8)));
                 }
             }
         }
 
+        // In search/perft, filter illegal moves
+
+        self.side_to_move = !self.side_to_move;
+
         moves
     }
     
-    /// Precomputes a list of attack bitboards.
-    fn compute_attack_bitboards(&mut self) {
-        for square in 0..64 {
-            let rank = (square / 8) as i8;
-            let file = (square % 8) as i8;
+    /// Applies a move to the board.
+    pub fn make_move(&mut self, piece_move: &Move) {
+        let initial_piece = self.board[piece_move.initial.rank as usize][piece_move.initial.file as usize].clone().expect("expected a piece on initial square");
+        let end_piece = self.board[piece_move.initial.rank as usize][piece_move.initial.file as usize].clone();
 
-            for (index, piece_offset) in PIECE_OFFSETS.iter().enumerate() {
-                let mut attacks: u64 = 0;
+        // Update the bitboards.
+        self.piece_bitboard[initial_piece.piece_type.to_index()].clear_bit(piece_move.initial);
+        self.piece_bitboard[initial_piece.piece_color.to_index()].clear_bit(piece_move.initial);
+        self.piece_bitboard[initial_piece.piece_type.to_index()].set_bit(piece_move.end);
+        self.piece_bitboard[initial_piece.piece_color.to_index()].set_bit(piece_move.end);
 
-                if index + 1 == PieceType::Rook.to_index() {
-                    attacks = ROOK_MAGICS[rank as usize * 8 + file as usize].mask;
-                } else if index + 1 == PieceType::Bishop.to_index() {
-                    attacks = BISHOP_MAGICS[rank as usize * 8 + file as usize].mask;
-                } else {
-                    for (dr, df) in piece_offset.iter() {
-                        let (new_rank, new_file) = (rank + dr, file + df);
-                        let bitboard = if !(0..8).contains(&new_rank) || !(0..8).contains(&new_file) {
-                            0
-                        } else {
-                            1u64 << (new_rank * 8 + new_file)
-                        };
-    
-                        attacks |= bitboard;
-                    }
+        if let Some(ref piece) = end_piece {
+            self.piece_bitboard[piece.piece_type.to_index()].clear_bit(piece_move.end);
+            self.piece_bitboard[piece.piece_color.to_index()].clear_bit(piece_move.end);
+        }
+
+        // Update the mailbox board.
+        self.board[piece_move.initial.rank as usize][piece_move.initial.file as usize] = None;
+        self.board[piece_move.end.rank as usize][piece_move.end.file as usize] = Some(initial_piece.clone());
+
+        let castle_rights = &mut self.castle_rights[initial_piece.piece_color.to_index()];
+        if *castle_rights != CastleRights::None {
+            if initial_piece.piece_type == PieceType::King {
+                *castle_rights = CastleRights::None; // The right to castle has been lost if the king has already moved.
+            } else if initial_piece.piece_type == PieceType::Rook {
+                // The right to castle has been lost with a rook that has already moved.
+                if piece_move.initial.file == 0 {
+                    *castle_rights = if *castle_rights == CastleRights::QueenSide { CastleRights::None } else { CastleRights::KingSide };
+                } else if piece_move.initial.file == 7 {
+                    *castle_rights = if *castle_rights == CastleRights::KingSide { CastleRights::None } else { CastleRights::QueenSide };
                 }
+            }
 
-                self.attack_bitboard[index][square] = Bitboard::new(attacks);
+            if let Some(ref piece) = end_piece && piece.piece_type == PieceType::Rook {
+                // Can't castle with a dead rook
+                if piece_move.end.file == 0 {
+                    *castle_rights = if *castle_rights == CastleRights::QueenSide { CastleRights::None } else { CastleRights::KingSide };
+                } else if piece_move.end.file == 7 {
+                    *castle_rights = if *castle_rights == CastleRights::KingSide { CastleRights::None } else { CastleRights::QueenSide };
+                }
             }
         }
-    }
 
+        self.en_passant = None;
+
+        match piece_move.metadata {
+            MoveFlags::DoublePush => {
+                let direction = if initial_piece.piece_color == PieceColor::White { -1 } else { 1 };
+                self.en_passant = Some(piece_move.end.transform(direction, 0));
+            },
+            // MoveFlags::EnPassant => {},
+            MoveFlags::Castling => {
+                self.castle_rights[initial_piece.piece_color.to_index()] = CastleRights::None;
+                let king_side = (piece_move.end.file - piece_move.initial.file) == 2;
+
+                let old_rook_position = Position::new(
+                    if initial_piece.piece_color == PieceColor::White { 0 } else { 7 }, 
+                    if king_side { 7 } else { 0 }
+                );
+
+                let new_rook_position = Position::new(
+                    if initial_piece.piece_color == PieceColor::White { 0 } else { 7 }, 
+                    if king_side { 5 } else { 3 }
+                );
+
+                self.piece_bitboard[PieceType::Rook.to_index()].clear_bit(old_rook_position);
+                self.piece_bitboard[initial_piece.piece_color.to_index()].clear_bit(old_rook_position);
+                self.piece_bitboard[PieceType::Rook.to_index()].set_bit(new_rook_position);
+                self.piece_bitboard[initial_piece.piece_color.to_index()].set_bit(new_rook_position);
+
+                self.board[old_rook_position.rank as usize][old_rook_position.file as usize] = None;
+                self.board[new_rook_position.rank as usize][new_rook_position.file as usize] = Some(Piece::new(PieceType::Rook, initial_piece.piece_color));
+            },
+            MoveFlags::KnightPromotion => {
+                self.piece_bitboard[initial_piece.piece_type.to_index()].clear_bit(piece_move.end);
+                self.piece_bitboard[PieceType::Knight.to_index()].set_bit(piece_move.end);
+                self.board[piece_move.end.rank as usize][piece_move.end.file as usize] = Some(Piece::new(PieceType::Knight, initial_piece.piece_color));
+            },
+            MoveFlags::BishopPromotion => {
+                self.piece_bitboard[initial_piece.piece_type.to_index()].clear_bit(piece_move.end);
+                self.piece_bitboard[PieceType::Bishop.to_index()].set_bit(piece_move.end);
+                self.board[piece_move.end.rank as usize][piece_move.end.file as usize] = Some(Piece::new(PieceType::Bishop, initial_piece.piece_color));
+            },
+            MoveFlags::RookPromotion => {
+                self.piece_bitboard[initial_piece.piece_type.to_index()].clear_bit(piece_move.end);
+                self.piece_bitboard[PieceType::Rook.to_index()].set_bit(piece_move.end);
+                self.board[piece_move.end.rank as usize][piece_move.end.file as usize] = Some(Piece::new(PieceType::Rook, initial_piece.piece_color));
+            },
+            MoveFlags::QueenPromotion => {
+                self.piece_bitboard[initial_piece.piece_type.to_index()].clear_bit(piece_move.end);
+                self.piece_bitboard[PieceType::Queen.to_index()].set_bit(piece_move.end);
+                self.board[piece_move.end.rank as usize][piece_move.end.file as usize] = Some(Piece::new(PieceType::Queen, initial_piece.piece_color));
+            },
+            _ => {}
+        }
+    }
+    
     /// Precomputes the legal moves for sliding pieces.
     fn compute_sliding_bitboards(&mut self) {
         for rank in 0..8 {
@@ -230,10 +358,10 @@ impl Board {
                     let magic = &BISHOP_MAGICS[rank * 8 + file];
                     let index = Board::generate_magic_index(magic, blocker_bitboard);
 
-                    legal_moves.board |= Board::generate_bishop_moves(rank as i8, file as i8, 1, 1, blocker_bitboard).board;
-                    legal_moves.board |= Board::generate_bishop_moves(rank as i8, file as i8, 1, -1, blocker_bitboard).board;
-                    legal_moves.board |= Board::generate_bishop_moves(rank as i8, file as i8, -1, 1, blocker_bitboard).board;
-                    legal_moves.board |= Board::generate_bishop_moves(rank as i8, file as i8, -1, -1, blocker_bitboard).board;
+                    legal_moves |= Board::generate_bishop_moves(rank as i8, file as i8, 1, 1, blocker_bitboard);
+                    legal_moves |= Board::generate_bishop_moves(rank as i8, file as i8, 1, -1, blocker_bitboard);
+                    legal_moves |= Board::generate_bishop_moves(rank as i8, file as i8, -1, 1, blocker_bitboard);
+                    legal_moves |= Board::generate_bishop_moves(rank as i8, file as i8, -1, -1, blocker_bitboard);
 
                     self.sliding_bishop_bitboard[index] = legal_moves;
                 }
@@ -243,7 +371,11 @@ impl Board {
 
     /// Precomputes the blocker bitboards for a slidng piece.
     fn compute_blocker_bitboards(&mut self, rank: usize, file: usize, piece_type: PieceType) -> Vec<Bitboard> {
-        let attack_bitboard = self.attack_bitboard[piece_type.to_index() - 1][rank * 8 + file].clone();
+        let attack_bitboard = match piece_type {
+            PieceType::Rook => Bitboard::new(ROOK_MAGICS[rank * 8 + file].mask),
+            PieceType::Bishop => Bitboard::new(BISHOP_MAGICS[rank * 8 + file].mask),
+            _ => panic!("blocker bitboard cannot be computed for non-sliding piece")
+        };
 
         let mut move_square_indices = Vec::new();
         for rank in 0..8 {
@@ -271,7 +403,7 @@ impl Board {
 
     /// Generates bishop moves in a certain direction.
     fn generate_rook_moves(rank: u8, file: u8, legal_moves: &mut Bitboard, blocker_bitboard: &Bitboard) {
-        for rank2 in rank..7 {
+        for rank2 in rank..8 {
             let current_position = Position::new(rank2, file);
             if current_position == Position::new(rank, file) { continue; }
 
@@ -281,7 +413,7 @@ impl Board {
             }
         }
 
-        for rank2 in (1..rank).rev() {
+        for rank2 in (0..rank).rev() {
             let current_position = Position::new(rank2, file);
             if current_position == Position::new(rank, file) { continue; }
 
@@ -291,7 +423,7 @@ impl Board {
             }
         }
 
-        for file2 in file..7 {
+        for file2 in file..8 {
             let current_position = Position::new(rank, file2);
             if current_position == Position::new(rank, file) { continue; }
 
@@ -301,7 +433,7 @@ impl Board {
             }
         }
 
-        for file2 in (1..file).rev() {
+        for file2 in (0..file).rev() {
             let current_position = Position::new(rank, file2);
             if current_position == Position::new(rank, file) { continue; }
 
