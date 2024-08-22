@@ -1,40 +1,23 @@
 #![feature(let_chains)]
 #![feature(string_remove_matches)]
 
-
-use state::consts::{BISHOP_MAGICS, BISHOP_MASKS, ROOK_MAGICS};
+use state::{board::Bitboard, consts::{get_bishop_mask, BISHOP_MAGICS, BLACK_PAWN_MASK, WHITE_PAWN_MASK}, piece::Position};
 
 mod state;
 
 /// Renders a chess board for debugging purposes.
 fn render_board(board: &state::board::Board) {
-    for row in board.board.iter() {
-        for cell in row.iter() {
-            print!("| ");
-            match cell {
-                Some(piece) => {
-                    let uppercase = piece.piece_color == state::piece::PieceColor::White;
-                    match piece.piece_type {
-                        state::piece::PieceType::Pawn => if uppercase { print!("P") } else { print!("p") },
-                        state::piece::PieceType::Rook => if uppercase { print!("R") } else { print!("r") },
-                        state::piece::PieceType::Knight => if uppercase { print!("N") } else { print!("n") },
-                        state::piece::PieceType::Bishop => if uppercase { print!("B") } else { print!("b") },
-                        state::piece::PieceType::Queen => if uppercase { print!("Q") } else { print!("q") },
-                        state::piece::PieceType::King => if uppercase { print!("K") } else { print!("k") },
-                    }
-                },
-                None => print!(" "),
-            }
-        }
 
-        println!("|");
-    }
 }
 
 fn main() {
-    std::env::set_var("RUST_BACKTRACE", "1");
+    std::env::set_var("RUST_BACKTRACE", "full");
+    
+    let board = state::board::Board::new("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    dbg!(board.perft(4, 4, &mut vec![]));
 
-    let board = state::board::Board::new("8/6k2/8/8/8/8/8/8 w - - 0 1");
+    // let pos = Position::from_code("a7");
+    // Bitboard::new(BLACK_PAWN_MASK[pos.square()].0).render_bitboard(pos);
 
     // let mut file = std::fs::File::create("rook.txt").expect("couldnt make file");
     // let mut shit = "[".to_string();
@@ -49,15 +32,15 @@ fn main() {
 
     // file.write_all(shit.as_bytes()).expect("couldnt write");
 
-    let position = state::piece::Position::from_code("g8");
+    // let position = state::piece::Position::from_code("c1");
 
-    let mut blocker_bitboard = state::board::Bitboard::new(0);
-    blocker_bitboard.set_bit(state::piece::Position::from_code("d5"));
-    blocker_bitboard.render_bitboard(position);
+    // let mut blocker_bitboard = state::board::Bitboard::new(18446462598732906495);
+    // // blocker_bitboard.set_bit(state::piece::Position::from_code("d5"));
+    // blocker_bitboard.render_bitboard(position);
 
-    let magic = &BISHOP_MAGICS[position.square()];
-    let bitboard = BISHOP_MASKS[state::board::Board::generate_magic_index(magic, &blocker_bitboard)];
-    bitboard.render_bitboard(position);
+    // let magic = &BISHOP_MAGICS[position.square()];
+    // let bitboard = get_bishop_mask(state::board::Board::generate_magic_index(magic, &blocker_bitboard));
+    // bitboard.render_bitboard(position);
 
     // let position = state::piece::Position::from_code("g8");
     // let time = std::time::Instant::now();

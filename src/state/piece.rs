@@ -1,6 +1,6 @@
 use std::ops::Not;
 
-use super::{board::{Bitboard, Board, PositionalBitboard}, consts::{BISHOP_MAGICS, BLACK_PAWN_MASK, KING_MASKS, KNIGHT_MASKS, MAX_LEGAL_MOVES, ROOK_MAGICS, WHITE_PAWN_MASK}};
+use super::{board::{Bitboard, Board, PositionalBitboard}, consts::{get_rook_mask, get_bishop_mask, BISHOP_MAGICS, BLACK_PAWN_MASK, KING_MASKS, KNIGHT_MASKS, MAX_LEGAL_MOVES, ROOK_MAGICS, WHITE_PAWN_MASK}};
 
 /// An enum representing the type of chess piece.
 #[derive(Debug, Clone, PartialEq, strum_macros::EnumCount, strum_macros::EnumIter)]
@@ -113,6 +113,7 @@ impl Position {
 
     /// Returns a transformed position.
     pub fn transform(&self, offset_rank: i8, offset_file: i8) -> Self {
+        // dbg!(&self, offset_rank, offset_file);
         Position::new((self.rank as i8 + offset_rank) as u8, (self.file as i8 + offset_file) as u8)
     }
 
@@ -140,21 +141,19 @@ impl Position {
 
     /// Whether or not the position is under attack from a specific side.
     pub fn is_under_attack(&self, board: &Board, enemy_side: PieceColor) -> bool {
-        let enemy_pawns = board.piece_bitboard[PieceType::Pawn.to_index()] & board.piece_bitboard[enemy_side.to_index()];
-        let enemy_knights = board.piece_bitboard[PieceType::Knight.to_index()] & board.piece_bitboard[enemy_side.to_index()];
-        let enemy_bishops = (board.piece_bitboard[PieceType::Bishop.to_index()] | board.piece_bitboard[PieceType::Queen.to_index()]) 
-            & board.piece_bitboard[enemy_side.to_index()];
-        let enemy_rooks = (board.piece_bitboard[PieceType::Rook.to_index()] | board.piece_bitboard[PieceType::Queen.to_index()]) 
-            & board.piece_bitboard[enemy_side.to_index()];
-        let enemy_kings = board.piece_bitboard[PieceType::King.to_index()] & board.piece_bitboard[enemy_side.to_index()];
+        let enemy_pawns = board.colored_piece(PieceType::Pawn, enemy_side);
+        let enemy_knights = board.colored_piece(PieceType::Knight, enemy_side);
+        let enemy_bishops = board.colored_piece(PieceType::Bishop, enemy_side) | board.colored_piece(PieceType::Queen, enemy_side);
+        let enemy_rooks = board.colored_piece(PieceType::Rook, enemy_side) | board.colored_piece(PieceType::Queen, enemy_side);
+        let enemy_kings = board.colored_piece(PieceType::King, enemy_side);
 
         let pawn_attacks = Bitboard::new(match enemy_side {
             PieceColor::White => WHITE_PAWN_MASK[self.square()].1,
             PieceColor::Black => BLACK_PAWN_MASK[self.square()].1,
         }) & enemy_pawns;
         let knight_attacks = Bitboard::new(KNIGHT_MASKS[self.square()]) & enemy_knights;
-        let bishop_attacks = board.sliding_bishop_bitboard[Board::generate_magic_index(&BISHOP_MAGICS[self.square()], &board.occupied())] & enemy_bishops;
-        let rook_attacks = board.sliding_rook_bitboard[Board::generate_magic_index(&ROOK_MAGICS[self.square()], &board.occupied())] & enemy_rooks;
+        let bishop_attacks = get_bishop_mask(Board::generate_magic_index(&BISHOP_MAGICS[self.square()], &board.occupied())) & enemy_bishops;
+        let rook_attacks = get_rook_mask(Board::generate_magic_index(&ROOK_MAGICS[self.square()], &board.occupied())) & enemy_rooks;
         let king_attacks = Bitboard::new(KING_MASKS[self.square()]) & enemy_kings;
 
         (pawn_attacks | knight_attacks | bishop_attacks | rook_attacks | king_attacks) != Bitboard::new(0)
@@ -177,7 +176,7 @@ impl Piece {
     }
 
     /// Generates a list of moves for the piece.
-    pub fn generate_moves(&self, board: &mut Board, position: Position) -> Vec<Move> {
+    pub fn generate_moves(&self, board: &Board, position: Position) -> Vec<Move> {
         match self.piece_type {
             PieceType::Pawn => Piece::generate_pawn_moves(board, position, self.piece_color),
             PieceType::Knight => Piece::generate_knight_moves(board, position, self.piece_color),
@@ -188,7 +187,7 @@ impl Piece {
         }
     }
 
-    fn generate_pawn_moves(board: &mut Board, position: Position, piece_color: PieceColor) -> Vec<Move> {
+    fn generate_pawn_moves(board: &Board, position: Position, piece_color: PieceColor) -> Vec<Move> {
         /*
          * TODO:
          * - Double Push (done)
@@ -200,7 +199,7 @@ impl Piece {
 
         let mut moves = Vec::with_capacity(MAX_LEGAL_MOVES);
 
-        let direction = if piece_color == PieceColor::White { 1 } else { 0 };
+        let direction = if piece_color == PieceColor::White { 1 } else { -1 };
 
         // Get movement and capture masks.
         let (mut movement, mut captures) = match piece_color {
@@ -209,18 +208,21 @@ impl Piece {
         };
         let double_push_position = position.transform(2 * direction, 0);
 
-        // If the pawn isn't on the correct rank, disable double push.
-        if position.rank != (if piece_color == PieceColor::White { 2 } else { 7 }) {
+        if position.rank != (if piece_color == PieceColor::White { 1 } else { 6 }) {
             movement.clear_bit(double_push_position);
         }
 
         movement &= !board.occupied(); // Avoid moving onto pieces.
-        captures &= board.piece_bitboard[!(piece_color).to_index()]; // Allow move only if an enemy piece is there.
+        captures &= board.color(!piece_color); // Allow move only if an enemy piece is there.
 
         // Check for en passant captures.
         let mut en_passant = None;
         if let Some(ep) = board.en_passant {
-            if position.transform(1 * direction, 1) == ep || position.transform(1 * direction, -1) == ep {
+            if position.transform(1 * direction, if position.file == 7 { 0 } else { 1 }) == ep {
+                en_passant = Some(ep);
+            }
+
+            if position.transform(1 * direction, if position.file == 0 { 0 } else { -1 }) == ep {
                 en_passant = Some(ep);
             }
         }
@@ -249,11 +251,11 @@ impl Piece {
         moves
     }
 
-    fn generate_knight_moves(board: &mut Board, position: Position, piece_color: PieceColor) -> Vec<Move> {
+    fn generate_knight_moves(board: &Board, position: Position, piece_color: PieceColor) -> Vec<Move> {
         let mut moves = Vec::with_capacity(MAX_LEGAL_MOVES);
         
         let mut mask = Bitboard::new(KNIGHT_MASKS[position.square()]);
-        mask &= !board.piece_bitboard[piece_color.to_index()]; // Avoid capturing friendly pieces.
+        mask &= !board.color(piece_color); // Avoid capturing friendly pieces.
 
         for r in 0..8 {
             for f in 0..8 {
@@ -268,14 +270,14 @@ impl Piece {
         moves
     }
 
-    fn generate_rook_moves(board: &mut Board, position: Position, piece_color: PieceColor) -> Vec<Move> {
+    fn generate_rook_moves(board: &Board, position: Position, piece_color: PieceColor) -> Vec<Move> {
         let mut moves = Vec::with_capacity(MAX_LEGAL_MOVES);
 
         // Retreive the mask through the magic indexing system.
         let magic = &ROOK_MAGICS[position.square()];
 
-        let mut mask = board.sliding_rook_bitboard[Board::generate_magic_index(magic, &board.occupied())];
-        mask &= !board.piece_bitboard[piece_color.to_index()]; // Avoid capturing friendly pieces.
+        let mut mask = get_rook_mask(Board::generate_magic_index(magic, &board.occupied()));
+        mask &= !board.color(piece_color); // Avoid capturing friendly pieces.
 
         for r in 0..8 {
             for f in 0..8 {
@@ -290,14 +292,14 @@ impl Piece {
         moves
     }
 
-    fn generate_bishop_moves(board: &mut Board, position: Position, piece_color: PieceColor) -> Vec<Move> {
+    fn generate_bishop_moves(board: &Board, position: Position, piece_color: PieceColor) -> Vec<Move> {
         let mut moves = Vec::with_capacity(MAX_LEGAL_MOVES);
 
         // Retreive the mask through the magic indexing system.
         let magic = &BISHOP_MAGICS[position.square()];
 
-        let mut mask = board.sliding_bishop_bitboard[Board::generate_magic_index(magic, &board.occupied())];
-        mask &= !board.piece_bitboard[piece_color.to_index()]; // Avoid capturing friendly pieces.
+        let mut mask = get_bishop_mask(Board::generate_magic_index(magic, &board.occupied()));
+        mask &= !board.color(piece_color); // Avoid capturing friendly pieces.
 
         for r in 0..8 {
             for f in 0..8 {
@@ -312,26 +314,28 @@ impl Piece {
         moves
     }
 
-    fn generate_king_moves(board: &mut Board, position: Position, piece_color: PieceColor) -> Vec<Move> {
+    fn generate_king_moves(board: &Board, position: Position, piece_color: PieceColor) -> Vec<Move> {
         let mut moves = Vec::with_capacity(MAX_LEGAL_MOVES);
         
         let mut mask = Bitboard::new(KING_MASKS[position.square()]);
-        mask &= !board.piece_bitboard[piece_color.to_index()]; // Avoid capturing friendly pieces.
+        mask &= !board.color(piece_color); // Avoid capturing friendly pieces.
+
+        let occupied = board.occupied();
 
         match board.castle_rights[piece_color.to_index()] {
             CastleRights::KingSide => {
                 let can_castle = !(position.is_under_attack(board, piece_color)
-                || position.transform(0, 1).is_under_attack(board, piece_color)
-                || position.transform(0, 2).is_under_attack(board, piece_color));
-                
+                || position.transform(0, 1).is_under_attack(board, piece_color) || occupied.get_bit(position.transform(0, 1))
+                || position.transform(0, 2).is_under_attack(board, piece_color) || occupied.get_bit(position.transform(0, 2)));
+
                 if can_castle {
                     moves.push(Move::new(position, position.transform(0, 2), MoveFlags::Castling));
                 }
             },
             CastleRights::QueenSide => {
                 let can_castle = !(position.is_under_attack(board, piece_color)
-                || position.transform(0, -1).is_under_attack(board, piece_color)
-                || position.transform(0, -2).is_under_attack(board, piece_color));
+                || position.transform(0, -1).is_under_attack(board, piece_color) || occupied.get_bit(position.transform(0, -1))
+                || position.transform(0, -2).is_under_attack(board, piece_color) || occupied.get_bit(position.transform(0, -2)));
 
                 if can_castle {
                     moves.push(Move::new(position, position.transform(0, -2), MoveFlags::Castling));
@@ -339,16 +343,16 @@ impl Piece {
             },
             CastleRights::Both => {
                 let can_castle = !(position.is_under_attack(board, piece_color)
-                || position.transform(0, 1).is_under_attack(board, piece_color)
-                || position.transform(0, 2).is_under_attack(board, piece_color));
+                || position.transform(0, 1).is_under_attack(board, piece_color) || occupied.get_bit(position.transform(0, 1))
+                || position.transform(0, 2).is_under_attack(board, piece_color) || occupied.get_bit(position.transform(0, 2)));
                 
                 if can_castle {
                     moves.push(Move::new(position, position.transform(0, 2), MoveFlags::Castling));
                 }
                 
                 let can_castle = !(position.is_under_attack(board, piece_color)
-                || position.transform(0, -1).is_under_attack(board, piece_color)
-                || position.transform(0, -2).is_under_attack(board, piece_color));
+                || position.transform(0, -1).is_under_attack(board, piece_color) || occupied.get_bit(position.transform(0, -1))
+                || position.transform(0, -2).is_under_attack(board, piece_color) || occupied.get_bit(position.transform(0, -2)));
 
                 if can_castle {
                     moves.push(Move::new(position, position.transform(0, -2), MoveFlags::Castling));

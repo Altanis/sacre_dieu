@@ -1,7 +1,7 @@
-use std::{collections::BTreeSet, ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not}};
+use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not};
 
 use strum::EnumCount;
-use super::{consts::{MagicEntry, BISHOP_MAGICS, BISHOP_TABLE_SIZE, MAX_LEGAL_MOVES, PIECE_MAP, ROOK_MAGICS, ROOK_TABLE_SIZE}, piece::*};
+use super::{consts::{MagicEntry, MAX_LEGAL_MOVES, PIECE_MAP}, piece::*};
 use colored::Colorize;
 
 /// A type representing a 2D array representation of the chess board.
@@ -10,7 +10,8 @@ pub type ChessBoard = [[Option<Piece>; 8]; 8];
 pub type PositionalBitboard = [Bitboard; PieceType::COUNT + PieceColor::COUNT];
 
 /// A bitboard representing the presence of a specific state on the chess board.
-#[derive(Debug, Default, Clone, Copy, PartialEq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
+#[repr(C)]
 pub struct Bitboard {
     /// The underlying u64 board.
     pub board: u64
@@ -44,7 +45,7 @@ impl Bitboard {
                 let pos = Position::new(row, col);
                 let is_set = self.get_bit(pos);
     
-                print!("| ");
+                print!( "| ");
                 if pos == position {
                     if is_set {
                         print!("{}", "X".green())
@@ -124,24 +125,20 @@ impl Not for Bitboard {
 }
 
 /// A structure representing the state of an entire chess board.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Board {
-    pub piece_bitboard: PositionalBitboard,
-    pub sliding_rook_bitboard: [Bitboard; ROOK_TABLE_SIZE],
-    pub sliding_bishop_bitboard: [Bitboard; BISHOP_TABLE_SIZE],
+    piece_bitboard: PositionalBitboard,
+    pub board: ChessBoard,
+
     pub castle_rights: [CastleRights; 2],
     pub side_to_move: PieceColor,
-    pub en_passant: Option<Position>,
-    
-    pub board: ChessBoard
+    pub en_passant: Option<Position>
 }
 
 impl Board {
     pub fn default() -> Self {
         Board {
             piece_bitboard: std::array::from_fn(|_| Bitboard::default()),
-            sliding_rook_bitboard: std::array::from_fn(|_| Bitboard::default()),
-            sliding_bishop_bitboard: std::array::from_fn(|_| Bitboard::default()),
             castle_rights: std::array::from_fn(|_| CastleRights::default()),
             side_to_move: PieceColor::White,
             en_passant: None,
@@ -149,12 +146,31 @@ impl Board {
         }
     }
 
+    /// Returns all occupied squares on the board.
+    pub fn occupied(&self) -> Bitboard {
+        self.piece_bitboard[PieceColor::White.to_index()] | self.piece_bitboard[PieceColor::Black.to_index()]
+    }
+
+    /// Returns a bitboard for a particular color.
+    pub fn color(&self, color: PieceColor) -> Bitboard {
+        self.piece_bitboard[color.to_index()]
+    }
+
+    /// Returns a bitboard for a particular piece, irrespective of color.
+    pub fn piece(&self, piece: PieceType) -> Bitboard {
+        self.piece_bitboard[piece.to_index()]
+    }
+
+    /// Returns a bitboard for a particular piece and color.
+    pub fn colored_piece(&self, piece: PieceType, color: PieceColor) -> Bitboard {
+        self.piece_bitboard[piece.to_index()] & self.piece_bitboard[color.to_index()]
+    }
+
     /// Initialises a chess board given a FEN string.
     /// 
     /// Returns an error if the FEN is invalid.
     pub fn new(fen: &str) -> Board {
         let mut chess_board = Board::default();
-        chess_board.compute_sliding_bitboards();
 
         let (mut rank, mut file) = (7_u8, 0_u8);
 
@@ -183,7 +199,7 @@ impl Board {
                 },
                 'p' | 'n' | 'b' | 'r' | 'q' | 'k' => {
                     let piece_type = PIECE_MAP.get(&char.to_ascii_lowercase()).expect("").clone();
-                    chess_board.board[rank as usize][file as usize] = Some(Piece::new(piece_type.clone(), piece_color.clone()));
+                    chess_board.board[rank as usize][file as usize] = Some(Piece::new(piece_type.clone(), piece_color));
 
                     chess_board.piece_bitboard[piece_type.to_index()].set_bit(Position::new(rank, file));
                     chess_board.piece_bitboard[piece_color.to_index()].set_bit(Position::new(rank, file));
@@ -215,14 +231,9 @@ impl Board {
         
         chess_board
     }
-
-    /// Returns all occupied pieces on the board.
-    pub fn occupied(&self) -> Bitboard {
-        self.piece_bitboard[PieceColor::White.to_index()] | self.piece_bitboard[PieceColor::Black.to_index()]
-    }
         
     /// Generates all legal moves for a given piece.
-    pub fn generate_moves(&mut self) -> Vec<Move> {
+    pub fn generate_moves(&self) -> Vec<Move> {
         let mut moves = Vec::with_capacity(MAX_LEGAL_MOVES);
 
         for i in 0..8 {
@@ -233,17 +244,18 @@ impl Board {
             }
         }
 
-        // In search/perft, filter illegal moves
-
-        self.side_to_move = !self.side_to_move;
-
         moves
     }
     
     /// Applies a move to the board.
-    pub fn make_move(&mut self, piece_move: &Move) {
+    pub fn make_move(&mut self, piece_move: &Move, dbg: bool) {
         let initial_piece = self.board[piece_move.initial.rank as usize][piece_move.initial.file as usize].clone().expect("expected a piece on initial square");
-        let end_piece = self.board[piece_move.initial.rank as usize][piece_move.initial.file as usize].clone();
+        let end_piece = self.board[piece_move.end.rank as usize][piece_move.end.file as usize].clone();
+
+        if dbg {
+            dbg!(&initial_piece);
+            dbg!(&end_piece);
+        }
 
         // Update the bitboards.
         self.piece_bitboard[initial_piece.piece_type.to_index()].clear_bit(piece_move.initial);
@@ -336,131 +348,62 @@ impl Board {
             _ => {}
         }
     }
-    
-    /// Precomputes the legal moves for sliding pieces.
-    fn compute_sliding_bitboards(&mut self) {
-        for rank in 0..8 {
-            for file in 0..8 {
-                let rook_blocker_bitboard = self.compute_blocker_bitboards(rank, file, PieceType::Rook);
-                let bishop_blocker_bitboard = self.compute_blocker_bitboards(rank, file, PieceType::Bishop);
 
-                for blocker_bitboard in rook_blocker_bitboard.iter() {
-                    let mut legal_moves = Bitboard::new(0);
-                    let magic = &ROOK_MAGICS[rank * 8 + file];
-                    let index = Board::generate_magic_index(magic, blocker_bitboard);
+    /// Performance testing, move path enumerating function.
+    pub fn perft(&self, depth: usize, initial_depth: usize, last_moves: &mut Vec<String>) -> (u64, std::time::Duration) {
+        let time = std::time::Instant::now();
 
-                    Board::generate_rook_moves(rank as u8, file as u8, &mut legal_moves, blocker_bitboard);
-                    self.sliding_rook_bitboard[index] = legal_moves;
-                }
-
-                for blocker_bitboard in bishop_blocker_bitboard.iter() {       
-                    let mut legal_moves = Bitboard::new(0);
-                    let magic = &BISHOP_MAGICS[rank * 8 + file];
-                    let index = Board::generate_magic_index(magic, blocker_bitboard);
-
-                    legal_moves |= Board::generate_bishop_moves(rank as i8, file as i8, 1, 1, blocker_bitboard);
-                    legal_moves |= Board::generate_bishop_moves(rank as i8, file as i8, 1, -1, blocker_bitboard);
-                    legal_moves |= Board::generate_bishop_moves(rank as i8, file as i8, -1, 1, blocker_bitboard);
-                    legal_moves |= Board::generate_bishop_moves(rank as i8, file as i8, -1, -1, blocker_bitboard);
-
-                    self.sliding_bishop_bitboard[index] = legal_moves;
-                }
-            }
-        }
-    }
-
-    /// Precomputes the blocker bitboards for a slidng piece.
-    fn compute_blocker_bitboards(&mut self, rank: usize, file: usize, piece_type: PieceType) -> Vec<Bitboard> {
-        let attack_bitboard = match piece_type {
-            PieceType::Rook => Bitboard::new(ROOK_MAGICS[rank * 8 + file].mask),
-            PieceType::Bishop => Bitboard::new(BISHOP_MAGICS[rank * 8 + file].mask),
-            _ => panic!("blocker bitboard cannot be computed for non-sliding piece")
-        };
-
-        let mut move_square_indices = Vec::new();
-        for rank in 0..8 {
-            for file in 0..8 {
-                if attack_bitboard.get_bit(Position::new(rank, file)) {
-                    move_square_indices.push(rank * 8 + file);
-                }
-            }
+        if depth == 0 {
+            return (1, time.elapsed());
         }
 
-        let num_combos = 1 << move_square_indices.len();
-        let mut blocker_bitboards: Vec<Bitboard> = Vec::with_capacity(num_combos);
+        let moves = self.generate_moves();
+        let mut num_positions = 0;
 
-        for pattern_idx in 0..num_combos {
-            blocker_bitboards.push(Bitboard::default());
+        'a: for piece_move in moves.iter() {
+            let mut board = self.clone();
+            let mut dbg = false;
 
-            for (bit_idx, move_square_idx) in move_square_indices.iter().enumerate() {
-                let bit: u64 = ((pattern_idx >> bit_idx) & 1) as u64;
-                blocker_bitboards[pattern_idx].board |= bit << move_square_idx;
+            if last_moves.len() >= 2 && last_moves[0] == "b1a3" && last_moves[1] == "a7a5" {
+                dbg = true;
             }
-        }
-
-        blocker_bitboards
-    }
-
-    /// Generates bishop moves in a certain direction.
-    fn generate_rook_moves(rank: u8, file: u8, legal_moves: &mut Bitboard, blocker_bitboard: &Bitboard) {
-        for rank2 in rank..8 {
-            let current_position = Position::new(rank2, file);
-            if current_position == Position::new(rank, file) { continue; }
-
-            legal_moves.set_bit(current_position);
-            if blocker_bitboard.get_bit(current_position) {
-                break;
-            }
-        }
-
-        for rank2 in (0..rank).rev() {
-            let current_position = Position::new(rank2, file);
-            if current_position == Position::new(rank, file) { continue; }
-
-            legal_moves.set_bit(current_position);
-            if blocker_bitboard.get_bit(current_position) {
-                break;
-            }
-        }
-
-        for file2 in file..8 {
-            let current_position = Position::new(rank, file2);
-            if current_position == Position::new(rank, file) { continue; }
-
-            legal_moves.set_bit(current_position);
-            if blocker_bitboard.get_bit(current_position) {
-                break;
-            }
-        }
-
-        for file2 in (0..file).rev() {
-            let current_position = Position::new(rank, file2);
-            if current_position == Position::new(rank, file) { continue; }
-
-            legal_moves.set_bit(current_position);
-            if blocker_bitboard.get_bit(current_position) {
-                break;
-            }
-        }
-    }
-
-    /// Generates bishop moves in a certain direction.
-    fn generate_bishop_moves(rank: i8, file: i8, rank_offset: i8, file_offset: i8, blocker_bitboard: &Bitboard) -> Bitboard {
-        let mut legal_moves = Bitboard::new(0);
-    
-        for offset in 1..7 {
-            if !Position::is_valid((rank + offset * rank_offset) as u8, (file + offset * file_offset) as u8) {
-                break;
-            }
-
-            let current_position = Position::new((rank + offset * rank_offset) as u8, (file + offset * file_offset) as u8);
             
-            if current_position == Position::new(rank as u8, file as u8) { continue; }
-            legal_moves.set_bit(current_position);
-            if blocker_bitboard.get_bit(current_position) { break; }
+            board.make_move(piece_move, dbg);
+
+            if last_moves.len() >= 2 && last_moves[0] == "b1a3" && last_moves[1] == "a7a5" {
+                println!("{} - 1", format!("{}{}", piece_move.initial.get_code(), piece_move.end.get_code()));
+                board.occupied().render_bitboard(Position::new(0, 0));
+            }
+
+            for r in 0..8 {
+                for f in 0..8 {
+                    let pos = Position::new(r, f);
+
+                    if board.colored_piece(PieceType::King, board.side_to_move).get_bit(pos) && pos.is_under_attack(&board, !board.side_to_move) {
+                        continue 'a;
+                    }
+                }
+            }
+
+            let mut moves = last_moves.clone();
+            moves.push(format!("{}{}", piece_move.initial.get_code(), piece_move.end.get_code()));
+
+            board.side_to_move = !board.side_to_move;
+            let new_nodes = board.perft(depth - 1, initial_depth, &mut moves).0;
+
+            // if last_moves.len() == 1 && last_moves[0] == "b1a3" {
+            //     println!("{} - {}", format!("{}{}", piece_move.initial.get_code(), piece_move.end.get_code()), new_nodes);
+            // }
+
+            // println!("{}{}{} - {}", "\t".repeat(initial_depth - depth), piece_move.initial.get_code(), piece_move.end.get_code(), new_nodes);
+            // if initial_depth == depth {
+            //     println!("{}{} - {}", piece_move.initial.get_code(), piece_move.end.get_code(), new_nodes);
+            // }
+
+            num_positions += new_nodes;
         }
-    
-        legal_moves
+
+        (num_positions, time.elapsed())
     }
 
     /// Generates a magic index given a magic entry and a blocker bitboard.
@@ -469,5 +412,36 @@ impl Board {
         let hash = blockers.wrapping_mul(magic.magic);
         let index = (hash >> magic.shift) as usize;
         magic.offset as usize + index
+    }
+}
+
+impl std::fmt::Debug for Board {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f);
+
+        for row in self.board.iter() {
+            for cell in row.iter() {
+                write!(f, "| ");
+                match cell {
+                    Some(piece) => {
+                        let uppercase = piece.piece_color == PieceColor::White;
+                        match piece.piece_type {
+                            PieceType::Pawn => if uppercase { write!(f, "P")? } else { write!(f, "p")? },
+                            PieceType::Rook => if uppercase { write!(f, "R")? } else { write!(f, "r")? },
+                            PieceType::Knight => if uppercase { write!(f, "N")? } else { write!(f, "n")? },
+                            PieceType::Bishop => if uppercase { write!(f, "B")? } else { write!(f, "b")? },
+                            PieceType::Queen => if uppercase { write!(f, "Q")? } else { write!(f, "q")? },
+                            PieceType::King => if uppercase { write!(f, "K")? } else { write!(f, "k")? },
+                        }
+                    },
+                    None => write!(f, " ")?,
+                }
+            }
+    
+            writeln!(f, "|")?;
+        }
+        println!();
+
+        std::fmt::Result::Ok(())
     }
 }
