@@ -188,15 +188,6 @@ impl Piece {
     }
 
     fn generate_pawn_moves(board: &Board, tile_start: Tile, piece_color: PieceColor) -> Vec<Move> {
-        /*
-         * TODO:
-         * - Double Push (done)
-         * - Check If Any Piece is Capturable (done)
-         * - En Passant (done)
-            * In `make_move()`, en passant square should be set to None. Then, double push should be applied.
-         * - Promotion (done)
-         */
-
         let mut moves = Vec::with_capacity(MAX_LEGAL_MOVES);
 
         let direction = if piece_color == PieceColor::White { 1 } else { -1 };
@@ -225,31 +216,30 @@ impl Piece {
         if let Some(ep) = board.en_passant {
             if tile_start.file != 7 && tile_start.transform(1 * direction, 1) == ep {
                 en_passant = Some(ep);
+                captures.set_bit(ep);
             }
 
             if tile_start.file != 0 && tile_start.transform(1 * direction, -1) == ep {
                 en_passant = Some(ep);
+                captures.set_bit(ep);
             }
         }
 
-        for r in 0..8 {
-            for f in 0..8 {
-                let tile_end = Tile::new(r, f);
+        let mut mask = movement | captures;
+        while mask.board != 0 {
+            let tile_end = mask.pop_lsb();
 
-                if Some(tile_end) == en_passant {
-                    moves.push(Move::new(tile_start, tile_end, MoveFlags::EnPassant));
-                } else if movement.get_bit(tile_end) || captures.get_bit(tile_end) {
-                    if tile_end.rank == (if piece_color == PieceColor::White { 7 } else { 0 }) {
-                        moves.push(Move::new(tile_start, tile_end, MoveFlags::KnightPromotion));
-                        moves.push(Move::new(tile_start, tile_end, MoveFlags::BishopPromotion));
-                        moves.push(Move::new(tile_start, tile_end, MoveFlags::RookPromotion));
-                        moves.push(Move::new(tile_start, tile_end, MoveFlags::QueenPromotion));
-                    } else if tile_end == double_push_tile {
-                        moves.push(Move::new(tile_start, tile_end, MoveFlags::DoublePush));
-                    } else {
-                        moves.push(Move::new(tile_start, tile_end, MoveFlags::None));
-                    }
-                }
+            if Some(tile_end) == en_passant {
+                moves.push(Move::new(tile_start, tile_end, MoveFlags::EnPassant));
+            } else if tile_end.rank == (if piece_color == PieceColor::White { 7 } else { 0 }) {
+                moves.push(Move::new(tile_start, tile_end, MoveFlags::KnightPromotion));
+                moves.push(Move::new(tile_start, tile_end, MoveFlags::BishopPromotion));
+                moves.push(Move::new(tile_start, tile_end, MoveFlags::RookPromotion));
+                moves.push(Move::new(tile_start, tile_end, MoveFlags::QueenPromotion));
+            } else if tile_end == double_push_tile {
+                moves.push(Move::new(tile_start, tile_end, MoveFlags::DoublePush));
+            } else {
+                moves.push(Move::new(tile_start, tile_end, MoveFlags::None));
             }
         }
 
@@ -262,14 +252,10 @@ impl Piece {
         let mut mask = Bitboard::new(KNIGHT_MASKS[tile_start.index()]);
         mask &= !board.color(piece_color); // Avoid capturing friendly pieces.
 
-        for r in 0..8 {
-            for f in 0..8 {
-                let tile_end = Tile::new(r, f);
-
-                if mask.get_bit(tile_end) {
-                    moves.push(Move::new(tile_start, tile_end, MoveFlags::None));
-                }
-            }
+        let mut mask_clone = mask;
+        while mask_clone.board != 0 {
+            let tile_end = mask_clone.pop_lsb();
+            moves.push(Move::new(tile_start, tile_end, MoveFlags::None));
         }
 
         moves
@@ -284,14 +270,10 @@ impl Piece {
         let mut mask = get_rook_mask(Board::generate_magic_index(magic, &board.occupied()));
         mask &= !board.color(piece_color); // Avoid capturing friendly pieces.
 
-        for r in 0..8 {
-            for f in 0..8 {
-                let tile_end = Tile::new(r, f);
-
-                if mask.get_bit(tile_end) {
-                    moves.push(Move::new(tile_start, tile_end, MoveFlags::None));
-                }
-            }
+        let mut mask_clone = mask;
+        while mask_clone.board != 0 {
+            let tile_end = mask_clone.pop_lsb();
+            moves.push(Move::new(tile_start, tile_end, MoveFlags::None));
         }
 
         moves
@@ -306,14 +288,10 @@ impl Piece {
         let mut mask = get_bishop_mask(Board::generate_magic_index(magic, &board.occupied()));
         mask &= !board.color(piece_color); // Avoid capturing friendly pieces.
 
-        for r in 0..8 {
-            for f in 0..8 {
-                let tile_end = Tile::new(r, f);
-
-                if mask.get_bit(tile_end) {
-                    moves.push(Move::new(tile_start, tile_end, MoveFlags::None));
-                }
-            }
+        let mut mask_clone = mask;
+        while mask_clone.board != 0 {
+            let tile_end = mask_clone.pop_lsb();
+            moves.push(Move::new(tile_start, tile_end, MoveFlags::None));
         }
 
         moves
@@ -366,14 +344,10 @@ impl Piece {
             CastleRights::None => {}
         }
 
-        for r in 0..8 {
-            for f in 0..8 {
-                let tile_end = Tile::new(r, f);
-
-                if mask.get_bit(tile_end) {
-                    moves.push(Move::new(tile_start, tile_end, MoveFlags::None));
-                }
-            }
+        let mut mask_clone = mask;
+        while mask_clone.board != 0 {
+            let tile_end = mask_clone.pop_lsb();
+            moves.push(Move::new(tile_start, tile_end, MoveFlags::None));
         }
 
         moves

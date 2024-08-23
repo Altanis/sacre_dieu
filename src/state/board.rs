@@ -67,6 +67,17 @@ impl Bitboard {
 
         println!();
     }
+
+    /// Pops the LSB from the internal bitboard, returning a tile at the index of the first set bit.
+    pub fn pop_lsb(&mut self) -> Tile {
+        let lsb_index = self.board.trailing_zeros();
+        self.board &= self.board - 1;
+
+        let r = lsb_index as u8 / 8;
+        let f = lsb_index as u8 % 8;
+        
+        Tile::new(r, f)
+    }
 }
 
 impl serde::Serialize for Bitboard {
@@ -131,7 +142,7 @@ impl Not for Bitboard {
 #[derive(Clone)]
 pub struct Board {
     piece_bitboard: PositionalBitboard,
-    pub board: [[Option<Piece>; 8]; 8],
+    pub board: [Option<Piece>; 64],
 
     pub castle_rights: [CastleRights; 2],
     pub side_to_move: PieceColor,
@@ -145,7 +156,7 @@ impl Board {
             castle_rights: std::array::from_fn(|_| CastleRights::default()),
             side_to_move: PieceColor::White,
             en_passant: None,
-            board: std::array::from_fn(|_| std::array::from_fn(|_| None))
+            board: std::array::from_fn(|_| None)
         }
     }
 
@@ -202,7 +213,7 @@ impl Board {
                 },
                 'p' | 'n' | 'b' | 'r' | 'q' | 'k' => {
                     let piece_type = PIECE_MAP.get(&char.to_ascii_lowercase()).expect("").clone();
-                    chess_board.board[rank as usize][file as usize] = Some(Piece::new(piece_type.clone(), piece_color));
+                    chess_board.board[(rank * 8 + file) as usize] = Some(Piece::new(piece_type.clone(), piece_color));
 
                     chess_board.piece_bitboard[piece_type.to_index()].set_bit(Tile::new(rank, file));
                     chess_board.piece_bitboard[piece_color.to_index()].set_bit(Tile::new(rank, file));
@@ -239,11 +250,9 @@ impl Board {
     pub fn generate_moves(&self) -> Vec<Move> {
         let mut moves = Vec::with_capacity(MAX_LEGAL_MOVES);
 
-        for i in 0..8 {
-            for j in 0..8 {
-                if let Some(p) = self.board[i][j].clone() && p.piece_color == self.side_to_move {
-                    moves.extend(p.generate_moves(self, Tile::new(i as u8, j as u8)));
-                }
+        for square in 0..64 {
+            if let Some(p) = self.board[square].clone() && p.piece_color == self.side_to_move {
+                moves.extend(p.generate_moves(self, Tile::new(square as u8 / 8, square as u8 % 8)));
             }
         }
 
@@ -252,8 +261,8 @@ impl Board {
     
     /// Applies a move to the board.
     pub fn make_move(&mut self, piece_move: &Move, dbg: bool) {
-        let initial_piece = self.board[piece_move.initial.rank as usize][piece_move.initial.file as usize].clone().expect("expected a piece on initial square");
-        let end_piece = self.board[piece_move.end.rank as usize][piece_move.end.file as usize].clone();
+        let initial_piece = self.board[piece_move.initial.index()].clone().expect("expected a piece on initial square");
+        let end_piece = self.board[piece_move.end.index()].clone();
 
         // Update the bitboards.
         if let Some(ref piece) = end_piece {
@@ -267,8 +276,8 @@ impl Board {
         self.piece_bitboard[initial_piece.piece_color.to_index()].set_bit(piece_move.end);
 
         // Update the mailbox board.
-        self.board[piece_move.initial.rank as usize][piece_move.initial.file as usize] = None;
-        self.board[piece_move.end.rank as usize][piece_move.end.file as usize] = Some(initial_piece.clone());
+        self.board[piece_move.initial.index()] = None;
+        self.board[piece_move.end.index()] = Some(initial_piece.clone());
 
         let castle_rights = &mut self.castle_rights[initial_piece.piece_color.to_index()];
         if *castle_rights != CastleRights::None {
@@ -320,28 +329,28 @@ impl Board {
                 self.piece_bitboard[PieceType::Rook.to_index()].set_bit(new_rook_tile);
                 self.piece_bitboard[initial_piece.piece_color.to_index()].set_bit(new_rook_tile);
 
-                self.board[old_rook_tile.rank as usize][old_rook_tile.file as usize] = None;
-                self.board[new_rook_tile.rank as usize][new_rook_tile.file as usize] = Some(Piece::new(PieceType::Rook, initial_piece.piece_color));
+                self.board[old_rook_tile.index()] = None;
+                self.board[new_rook_tile.index()] = Some(Piece::new(PieceType::Rook, initial_piece.piece_color));
             },
             MoveFlags::KnightPromotion => {
                 self.piece_bitboard[initial_piece.piece_type.to_index()].clear_bit(piece_move.end);
                 self.piece_bitboard[PieceType::Knight.to_index()].set_bit(piece_move.end);
-                self.board[piece_move.end.rank as usize][piece_move.end.file as usize] = Some(Piece::new(PieceType::Knight, initial_piece.piece_color));
+                self.board[piece_move.end.index()] = Some(Piece::new(PieceType::Knight, initial_piece.piece_color));
             },
             MoveFlags::BishopPromotion => {
                 self.piece_bitboard[initial_piece.piece_type.to_index()].clear_bit(piece_move.end);
                 self.piece_bitboard[PieceType::Bishop.to_index()].set_bit(piece_move.end);
-                self.board[piece_move.end.rank as usize][piece_move.end.file as usize] = Some(Piece::new(PieceType::Bishop, initial_piece.piece_color));
+                self.board[piece_move.end.index()] = Some(Piece::new(PieceType::Bishop, initial_piece.piece_color));
             },
             MoveFlags::RookPromotion => {
                 self.piece_bitboard[initial_piece.piece_type.to_index()].clear_bit(piece_move.end);
                 self.piece_bitboard[PieceType::Rook.to_index()].set_bit(piece_move.end);
-                self.board[piece_move.end.rank as usize][piece_move.end.file as usize] = Some(Piece::new(PieceType::Rook, initial_piece.piece_color));
+                self.board[piece_move.end.index()] = Some(Piece::new(PieceType::Rook, initial_piece.piece_color));
             },
             MoveFlags::QueenPromotion => {
                 self.piece_bitboard[initial_piece.piece_type.to_index()].clear_bit(piece_move.end);
                 self.piece_bitboard[PieceType::Queen.to_index()].set_bit(piece_move.end);
-                self.board[piece_move.end.rank as usize][piece_move.end.file as usize] = Some(Piece::new(PieceType::Queen, initial_piece.piece_color));
+                self.board[piece_move.end.index()] = Some(Piece::new(PieceType::Queen, initial_piece.piece_color));
             },
             _ => {}
         }
@@ -449,10 +458,14 @@ impl std::fmt::Debug for Board {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f);
 
-        for row in self.board.iter().rev() {
-            for cell in row.iter() {
-                write!(f, "| ");
-                match cell {
+        let board_size = 8;
+        
+        for row in (0..board_size).rev() {
+            for col in 0..board_size {
+                let index = row * board_size + col;
+                write!(f, "| ")?;
+                
+                match &self.board[index] {
                     Some(piece) => {
                         let uppercase = piece.piece_color == PieceColor::White;
                         match piece.piece_type {
@@ -467,10 +480,12 @@ impl std::fmt::Debug for Board {
                     None => write!(f, " ")?,
                 }
             }
-    
+            
             writeln!(f, "|")?;
         }
-        println!();
+        
+        writeln!(f);
+        
 
         std::fmt::Result::Ok(())
     }
