@@ -1,6 +1,6 @@
 use std::ops::Not;
 
-use super::{board::{Bitboard, Board, PieceBitboard}, consts::{get_rook_mask, get_bishop_mask, BISHOP_MAGICS, BLACK_PAWN_MASK, KING_MASKS, KNIGHT_MASKS, MAX_LEGAL_MOVES, ROOK_MAGICS, WHITE_PAWN_MASK}};
+use super::{board::{Bitboard, Board, PositionalBitboard}, consts::{get_rook_mask, get_bishop_mask, BISHOP_MAGICS, BLACK_PAWN_MASK, KING_MASKS, KNIGHT_MASKS, MAX_LEGAL_MOVES, ROOK_MAGICS, WHITE_PAWN_MASK}};
 
 /// An enum representing the type of chess piece.
 #[derive(Debug, Clone, PartialEq, strum_macros::EnumCount, strum_macros::EnumIter)]
@@ -87,75 +87,42 @@ impl PieceColor {
 /// A square tile in chess.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Tile {
-    index: u8
+    pub rank: u8,
+    pub file: u8
 }
 
 impl Tile {
-    /// Instantiates a new tile from an index.
-    pub fn new(index: u8) -> Tile {
-        if index > 63 {
-            panic!("invalid tile {}", index);
-        }
-
-        Tile { index }
-    }
-
-    /// Instantiates a new tile from its rank and file.
-    pub fn from_coordinate(rank: u8, file: u8) -> Tile {
+    /// Instantiates a new tile.
+    pub fn new(rank: u8, file: u8) -> Tile {
         if rank > 7 || file > 7 {
-            panic!("invalid tile ({}, {})", rank, file);
+            panic!("invalid position {} {}", rank, file);
         }
 
-        Tile { index: (rank * 8) + file }
+        Tile { rank, file }
     }
 
-    /// Whether or not an index tile is valid.
-    pub fn is_valid_index(index: u8) -> bool {
-        index <= 63
-    }
-    
-    /// Whether or not a coordinate is a valid tile.
-    pub fn is_valid_coordinate(rank: u8, file: u8) -> bool {
+    /// Whether or not a tile is valid.
+    pub fn is_valid(rank: u8, file: u8) -> bool {
         !(rank > 7 || file > 7)
     }
 
     /// Returns the index of the tile.
     pub fn index(&self) -> usize {
-        self.index as usize
-    }
-
-    /// Returns the rank of the tile.
-    pub fn rank(&self) -> u8 {
-        self.index / 8
-    }
-
-    /// Returns the file of the tile.
-    pub fn file(&self) -> u8 {
-        self.index % 8
-    }
-
-    /// Returns the coordinate of the tile.
-    pub fn coordinate(&self) -> (u8, u8) {
-        (self.rank(), self.file())
+        (self.rank * 8 + self.file) as usize
     }
 
     /// Returns a transformed tile.
     pub fn transform(&self, offset_rank: i8, offset_file: i8) -> Self {
-        // Tile::new((self.rank() as i8 + offset_rank) as u8, (self.file() as i8 + offset_file) as u8)
-        let (new_rank, new_file) = (self.rank() as i8 + offset_rank, self.file() as i8 + offset_file);
-        if (new_rank < 0 || new_file < 0) || (new_rank > 7 || new_file > 7) {
-            panic!("invalid tile ({}, {})", new_rank, new_file);
-        }
-
-        Tile::from_coordinate(new_rank as u8, new_file as u8)
+        // dbg!(&self, offset_rank, offset_file);
+        Tile::new((self.rank as i8 + offset_rank) as u8, (self.file as i8 + offset_file) as u8)
     }
 
     /// Converts a tile to a square code.
     pub fn get_code(&self) -> String {
-        format!("{}{}", (self.file() + b'a') as char, self.rank() + 1)
+        format!("{}{}", (self.file + b'a') as char, self.rank + 1)
     }
 
-    /// Instantiates a new tile from a code.
+    /// Instantiates a new tile from a square code.
     pub fn from_code(code: &str) -> Tile {
         if code.len() != 2 {
             panic!("invalid code");
@@ -164,15 +131,15 @@ impl Tile {
         let rank = code.chars().nth(1).expect("Code doesn't have rank").to_digit(10).expect("Rank can't be converted to number") as u8 - 1;
         let file = code.chars().nth(0).expect("Code doesn't have file") as u8 - b'a';
 
-        Tile::from_coordinate(rank, file)
+        Tile::new(rank, file)
     }
 
     /// Whether or not a code is valid.
     pub fn is_code_valid(code: &str) -> bool {
-        code.len() == 2 && code.chars().nth(1).and_then(|c| c.to_digit(10)).unwrap_or(8) <= 7
+        code.len() == 2 && code.chars().nth(1).and_then(|c| c.to_digit(10)).is_some()
     }    
 
-    /// Whether or not the tile is under attack from a specific side.
+    /// Whether or not the position is under attack from a specific side.
     pub fn is_under_attack(&self, board: &Board, enemy_side: PieceColor) -> bool {
         let enemy_pawns = board.colored_piece(PieceType::Pawn, enemy_side);
         let enemy_knights = board.colored_piece(PieceType::Knight, enemy_side);
@@ -181,8 +148,8 @@ impl Tile {
         let enemy_kings = board.colored_piece(PieceType::King, enemy_side);
 
         let pawn_attacks = Bitboard::new(match enemy_side {
-            PieceColor::White => BLACK_PAWN_MASK[self.index()].1,
-            PieceColor::Black => WHITE_PAWN_MASK[self.index()].1,
+            PieceColor::White => WHITE_PAWN_MASK[self.index()].1,
+            PieceColor::Black => BLACK_PAWN_MASK[self.index()].1,
         }) & enemy_pawns;
         let knight_attacks = Bitboard::new(KNIGHT_MASKS[self.index()]) & enemy_knights;
         let bishop_attacks = get_bishop_mask(Board::generate_magic_index(&BISHOP_MAGICS[self.index()], &board.occupied())) & enemy_bishops;
@@ -241,7 +208,7 @@ impl Piece {
         };
         let double_push_tile = tile_start.transform(2 * direction, 0);
 
-        if tile_start.rank() != (if piece_color == PieceColor::White { 1 } else { 6 }) || board.occupied().get_bit(double_push_tile) {
+        if tile_start.rank != (if piece_color == PieceColor::White { 1 } else { 6 }) || board.occupied().get_bit(double_push_tile) {
             movement.clear_bit(double_push_tile);
         }
 
@@ -256,30 +223,32 @@ impl Piece {
         // Check for en passant captures.
         let mut en_passant = None;
         if let Some(ep) = board.en_passant {
-            if tile_start.file() != 7 && tile_start.transform(1 * direction, 1) == ep {
+            if tile_start.file != 7 && tile_start.transform(1 * direction, 1) == ep {
                 en_passant = Some(ep);
             }
 
-            if tile_start.file() != 0 && tile_start.transform(1 * direction, -1) == ep {
+            if tile_start.file != 0 && tile_start.transform(1 * direction, -1) == ep {
                 en_passant = Some(ep);
             }
         }
 
-        for square in 0..64 {
-            let tile_end = Tile::new(square);
+        for r in 0..8 {
+            for f in 0..8 {
+                let tile_end = Tile::new(r, f);
 
-            if Some(tile_end) == en_passant {
-                moves.push(Move::new(tile_start, tile_end, MoveFlags::EnPassant));
-            } else if movement.get_bit(tile_end) || captures.get_bit(tile_end) {
-                if tile_end.rank() == (if piece_color == PieceColor::White { 7 } else { 0 }) {
-                    moves.push(Move::new(tile_start, tile_end, MoveFlags::KnightPromotion));
-                    moves.push(Move::new(tile_start, tile_end, MoveFlags::BishopPromotion));
-                    moves.push(Move::new(tile_start, tile_end, MoveFlags::RookPromotion));
-                    moves.push(Move::new(tile_start, tile_end, MoveFlags::QueenPromotion));
-                } else if tile_end == double_push_tile {
-                    moves.push(Move::new(tile_start, tile_end, MoveFlags::DoublePush));
-                } else {
-                    moves.push(Move::new(tile_start, tile_end, MoveFlags::None));
+                if Some(tile_end) == en_passant {
+                    moves.push(Move::new(tile_start, tile_end, MoveFlags::EnPassant));
+                } else if movement.get_bit(tile_end) || captures.get_bit(tile_end) {
+                    if tile_end.rank == (if piece_color == PieceColor::White { 7 } else { 0 }) {
+                        moves.push(Move::new(tile_start, tile_end, MoveFlags::KnightPromotion));
+                        moves.push(Move::new(tile_start, tile_end, MoveFlags::BishopPromotion));
+                        moves.push(Move::new(tile_start, tile_end, MoveFlags::RookPromotion));
+                        moves.push(Move::new(tile_start, tile_end, MoveFlags::QueenPromotion));
+                    } else if tile_end == double_push_tile {
+                        moves.push(Move::new(tile_start, tile_end, MoveFlags::DoublePush));
+                    } else {
+                        moves.push(Move::new(tile_start, tile_end, MoveFlags::None));
+                    }
                 }
             }
         }
@@ -293,11 +262,13 @@ impl Piece {
         let mut mask = Bitboard::new(KNIGHT_MASKS[tile_start.index()]);
         mask &= !board.color(piece_color); // Avoid capturing friendly pieces.
 
-        for square in 0..64 {
-            let tile_end = Tile::new(square);
+        for r in 0..8 {
+            for f in 0..8 {
+                let tile_end = Tile::new(r, f);
 
-            if mask.get_bit(tile_end) {
-                moves.push(Move::new(tile_start, tile_end, MoveFlags::None));
+                if mask.get_bit(tile_end) {
+                    moves.push(Move::new(tile_start, tile_end, MoveFlags::None));
+                }
             }
         }
 
@@ -313,11 +284,13 @@ impl Piece {
         let mut mask = get_rook_mask(Board::generate_magic_index(magic, &board.occupied()));
         mask &= !board.color(piece_color); // Avoid capturing friendly pieces.
 
-        for square in 0..64 {
-            let tile_end = Tile::new(square);
+        for r in 0..8 {
+            for f in 0..8 {
+                let tile_end = Tile::new(r, f);
 
-            if mask.get_bit(tile_end) {
-                moves.push(Move::new(tile_start, tile_end, MoveFlags::None));
+                if mask.get_bit(tile_end) {
+                    moves.push(Move::new(tile_start, tile_end, MoveFlags::None));
+                }
             }
         }
 
@@ -333,11 +306,13 @@ impl Piece {
         let mut mask = get_bishop_mask(Board::generate_magic_index(magic, &board.occupied()));
         mask &= !board.color(piece_color); // Avoid capturing friendly pieces.
 
-        for square in 0..64 {
-            let tile_end = Tile::new(square);
+        for r in 0..8 {
+            for f in 0..8 {
+                let tile_end = Tile::new(r, f);
 
-            if mask.get_bit(tile_end) {
-                moves.push(Move::new(tile_start, tile_end, MoveFlags::None));
+                if mask.get_bit(tile_end) {
+                    moves.push(Move::new(tile_start, tile_end, MoveFlags::None));
+                }
             }
         }
 
@@ -391,11 +366,13 @@ impl Piece {
             CastleRights::None => {}
         }
 
-        for square in 0..64 {
-            let tile_end = Tile::new(square);
+        for r in 0..8 {
+            for f in 0..8 {
+                let tile_end = Tile::new(r, f);
 
-            if mask.get_bit(tile_end) {
-                moves.push(Move::new(tile_start, tile_end, MoveFlags::None));
+                if mask.get_bit(tile_end) {
+                    moves.push(Move::new(tile_start, tile_end, MoveFlags::None));
+                }
             }
         }
 
