@@ -1,6 +1,6 @@
 use std::ops::Not;
 
-use super::{board::{Bitboard, Board, PositionalBitboard}, consts::{get_rook_mask, get_bishop_mask, BISHOP_MAGICS, BLACK_PAWN_MASK, KING_MASKS, KNIGHT_MASKS, MAX_LEGAL_MOVES, ROOK_MAGICS, WHITE_PAWN_MASK}};
+use super::{board::{Bitboard, Board, PieceBitboard}, consts::{get_rook_mask, get_bishop_mask, BISHOP_MAGICS, BLACK_PAWN_MASK, KING_MASKS, KNIGHT_MASKS, MAX_LEGAL_MOVES, ROOK_MAGICS, WHITE_PAWN_MASK}};
 
 /// An enum representing the type of chess piece.
 #[derive(Debug, Clone, PartialEq, strum_macros::EnumCount, strum_macros::EnumIter)]
@@ -84,46 +84,79 @@ impl PieceColor {
     }
 }
 
-/// A position of a cell in chess.
+/// A square tile in chess.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Position {
-    pub rank: u8,
-    pub file: u8
+pub struct Tile {
+    index: u8
 }
 
-impl Position {
-    /// Instantiates a new position.
-    pub fn new(rank: u8, file: u8) -> Position {
-        if rank > 7 || file > 7 {
-            panic!("invalid position {} {}", rank, file);
+impl Tile {
+    /// Instantiates a new tile from an index.
+    pub fn new(index: u8) -> Tile {
+        if index > 63 {
+            panic!("invalid tile {}", index);
         }
 
-        Position { rank, file }
+        Tile { index }
     }
 
-    /// Whether or not a position is valid.
-    pub fn is_valid(rank: u8, file: u8) -> bool {
+    /// Instantiates a new tile from its rank and file.
+    pub fn from_coordinate(rank: u8, file: u8) -> Tile {
+        if rank > 7 || file > 7 {
+            panic!("invalid tile ({}, {})", rank, file);
+        }
+
+        Tile { index: (rank * 8) + file }
+    }
+
+    /// Whether or not an index tile is valid.
+    pub fn is_valid_index(index: u8) -> bool {
+        index <= 63
+    }
+    
+    /// Whether or not a coordinate is a valid tile.
+    pub fn is_valid_coordinate(rank: u8, file: u8) -> bool {
         !(rank > 7 || file > 7)
     }
 
-    /// Returns the square of the position.
-    pub fn square(&self) -> usize {
-        (self.rank * 8 + self.file) as usize
+    /// Returns the index of the tile.
+    pub fn index(&self) -> usize {
+        self.index as usize
     }
 
-    /// Returns a transformed position.
+    /// Returns the rank of the tile.
+    pub fn rank(&self) -> u8 {
+        self.index / 8
+    }
+
+    /// Returns the file of the tile.
+    pub fn file(&self) -> u8 {
+        self.index % 8
+    }
+
+    /// Returns the coordinate of the tile.
+    pub fn coordinate(&self) -> (u8, u8) {
+        (self.rank(), self.file())
+    }
+
+    /// Returns a transformed tile.
     pub fn transform(&self, offset_rank: i8, offset_file: i8) -> Self {
-        // dbg!(&self, offset_rank, offset_file);
-        Position::new((self.rank as i8 + offset_rank) as u8, (self.file as i8 + offset_file) as u8)
+        // Tile::new((self.rank() as i8 + offset_rank) as u8, (self.file() as i8 + offset_file) as u8)
+        let (new_rank, new_file) = (self.rank() as i8 + offset_rank, self.file() as i8 + offset_file);
+        if (new_rank < 0 || new_file < 0) || (new_rank > 7 || new_file > 7) {
+            panic!("invalid tile ({}, {})", new_rank, new_file);
+        }
+
+        Tile::from_coordinate(new_rank as u8, new_file as u8)
     }
 
-    /// Converts a position to a square code.
+    /// Converts a tile to a square code.
     pub fn get_code(&self) -> String {
-        format!("{}{}", (self.file + b'a') as char, self.rank + 1)
+        format!("{}{}", (self.file() + b'a') as char, self.rank() + 1)
     }
 
-    /// Instantiates a new position from a square code.
-    pub fn from_code(code: &str) -> Position {
+    /// Instantiates a new tile from a code.
+    pub fn from_code(code: &str) -> Tile {
         if code.len() != 2 {
             panic!("invalid code");
         }
@@ -131,15 +164,15 @@ impl Position {
         let rank = code.chars().nth(1).expect("Code doesn't have rank").to_digit(10).expect("Rank can't be converted to number") as u8 - 1;
         let file = code.chars().nth(0).expect("Code doesn't have file") as u8 - b'a';
 
-        Position::new(rank, file)
+        Tile::from_coordinate(rank, file)
     }
 
     /// Whether or not a code is valid.
     pub fn is_code_valid(code: &str) -> bool {
-        code.len() == 2 && code.chars().nth(1).and_then(|c| c.to_digit(10)).is_some()
+        code.len() == 2 && code.chars().nth(1).and_then(|c| c.to_digit(10)).unwrap_or(8) <= 7
     }    
 
-    /// Whether or not the position is under attack from a specific side.
+    /// Whether or not the tile is under attack from a specific side.
     pub fn is_under_attack(&self, board: &Board, enemy_side: PieceColor) -> bool {
         let enemy_pawns = board.colored_piece(PieceType::Pawn, enemy_side);
         let enemy_knights = board.colored_piece(PieceType::Knight, enemy_side);
@@ -148,13 +181,13 @@ impl Position {
         let enemy_kings = board.colored_piece(PieceType::King, enemy_side);
 
         let pawn_attacks = Bitboard::new(match enemy_side {
-            PieceColor::White => WHITE_PAWN_MASK[self.square()].1,
-            PieceColor::Black => BLACK_PAWN_MASK[self.square()].1,
+            PieceColor::White => BLACK_PAWN_MASK[self.index()].1,
+            PieceColor::Black => WHITE_PAWN_MASK[self.index()].1,
         }) & enemy_pawns;
-        let knight_attacks = Bitboard::new(KNIGHT_MASKS[self.square()]) & enemy_knights;
-        let bishop_attacks = get_bishop_mask(Board::generate_magic_index(&BISHOP_MAGICS[self.square()], &board.occupied())) & enemy_bishops;
-        let rook_attacks = get_rook_mask(Board::generate_magic_index(&ROOK_MAGICS[self.square()], &board.occupied())) & enemy_rooks;
-        let king_attacks = Bitboard::new(KING_MASKS[self.square()]) & enemy_kings;
+        let knight_attacks = Bitboard::new(KNIGHT_MASKS[self.index()]) & enemy_knights;
+        let bishop_attacks = get_bishop_mask(Board::generate_magic_index(&BISHOP_MAGICS[self.index()], &board.occupied())) & enemy_bishops;
+        let rook_attacks = get_rook_mask(Board::generate_magic_index(&ROOK_MAGICS[self.index()], &board.occupied())) & enemy_rooks;
+        let king_attacks = Bitboard::new(KING_MASKS[self.index()]) & enemy_kings;
 
         (pawn_attacks | knight_attacks | bishop_attacks | rook_attacks | king_attacks) != Bitboard::new(0)
     }
@@ -176,18 +209,18 @@ impl Piece {
     }
 
     /// Generates a list of moves for the piece.
-    pub fn generate_moves(&self, board: &Board, position: Position) -> Vec<Move> {
+    pub fn generate_moves(&self, board: &Board, tile_start: Tile) -> Vec<Move> {
         match self.piece_type {
-            PieceType::Pawn => Piece::generate_pawn_moves(board, position, self.piece_color),
-            PieceType::Knight => Piece::generate_knight_moves(board, position, self.piece_color),
-            PieceType::Bishop => Piece::generate_bishop_moves(board, position, self.piece_color),
-            PieceType::Rook => Piece::generate_rook_moves(board, position, self.piece_color),
-            PieceType::Queen => Piece::generate_bishop_moves(board, position, self.piece_color).into_iter().chain(Piece::generate_rook_moves(board, position, self.piece_color)).collect(),
-            PieceType::King => Piece::generate_king_moves(board, position, self.piece_color)
+            PieceType::Pawn => Piece::generate_pawn_moves(board, tile_start, self.piece_color),
+            PieceType::Knight => Piece::generate_knight_moves(board, tile_start, self.piece_color),
+            PieceType::Bishop => Piece::generate_bishop_moves(board, tile_start, self.piece_color),
+            PieceType::Rook => Piece::generate_rook_moves(board, tile_start, self.piece_color),
+            PieceType::Queen => Piece::generate_bishop_moves(board, tile_start, self.piece_color).into_iter().chain(Piece::generate_rook_moves(board, tile_start, self.piece_color)).collect(),
+            PieceType::King => Piece::generate_king_moves(board, tile_start, self.piece_color)
         }
     }
 
-    fn generate_pawn_moves(board: &Board, position: Position, piece_color: PieceColor) -> Vec<Move> {
+    fn generate_pawn_moves(board: &Board, tile_start: Tile, piece_color: PieceColor) -> Vec<Move> {
         /*
          * TODO:
          * - Double Push (done)
@@ -203,47 +236,50 @@ impl Piece {
 
         // Get movement and capture masks.
         let (mut movement, mut captures) = match piece_color {
-            PieceColor::White => (Bitboard::new(WHITE_PAWN_MASK[position.square()].0), Bitboard::new(WHITE_PAWN_MASK[position.square()].1)),
-            PieceColor::Black => (Bitboard::new(BLACK_PAWN_MASK[position.square()].0), Bitboard::new(BLACK_PAWN_MASK[position.square()].1))
+            PieceColor::White => (Bitboard::new(WHITE_PAWN_MASK[tile_start.index()].0), Bitboard::new(WHITE_PAWN_MASK[tile_start.index()].1)),
+            PieceColor::Black => (Bitboard::new(BLACK_PAWN_MASK[tile_start.index()].0), Bitboard::new(BLACK_PAWN_MASK[tile_start.index()].1))
         };
-        let double_push_position = position.transform(2 * direction, 0);
+        let double_push_tile = tile_start.transform(2 * direction, 0);
 
-        if position.rank != (if piece_color == PieceColor::White { 1 } else { 6 }) {
-            movement.clear_bit(double_push_position);
+        if tile_start.rank() != (if piece_color == PieceColor::White { 1 } else { 6 }) || board.occupied().get_bit(double_push_tile) {
+            movement.clear_bit(double_push_tile);
         }
 
-        movement &= !board.occupied(); // Avoid moving onto pieces.
+        if board.occupied().get_bit(tile_start.transform(1 * direction, 0)) {
+            movement.clear_bit(tile_start.transform(1 * direction, 0));
+            movement.clear_bit(double_push_tile);
+        }
+
+        // movement &= !board.occupied(); // Avoid moving onto pieces.
         captures &= board.color(!piece_color); // Allow move only if an enemy piece is there.
 
         // Check for en passant captures.
         let mut en_passant = None;
         if let Some(ep) = board.en_passant {
-            if position.transform(1 * direction, if position.file == 7 { 0 } else { 1 }) == ep {
+            if tile_start.file() != 7 && tile_start.transform(1 * direction, 1) == ep {
                 en_passant = Some(ep);
             }
 
-            if position.transform(1 * direction, if position.file == 0 { 0 } else { -1 }) == ep {
+            if tile_start.file() != 0 && tile_start.transform(1 * direction, -1) == ep {
                 en_passant = Some(ep);
             }
         }
 
-        for r in 0..8 {
-            for f in 0..8 {
-                let pos = Position::new(r, f);
+        for square in 0..64 {
+            let tile_end = Tile::new(square);
 
-                if Some(pos) == en_passant {
-                    moves.push(Move::new(position, pos, MoveFlags::EnPassant));
-                } else if movement.get_bit(pos) || captures.get_bit(pos) {
-                    if pos.rank == (if piece_color == PieceColor::White { 7 } else { 0 }) {
-                        moves.push(Move::new(position, pos, MoveFlags::KnightPromotion));
-                        moves.push(Move::new(position, pos, MoveFlags::BishopPromotion));
-                        moves.push(Move::new(position, pos, MoveFlags::RookPromotion));
-                        moves.push(Move::new(position, pos, MoveFlags::QueenPromotion));
-                    } else if pos == double_push_position {
-                        moves.push(Move::new(position, pos, MoveFlags::DoublePush));
-                    } else {
-                        moves.push(Move::new(position, pos, MoveFlags::None));
-                    }
+            if Some(tile_end) == en_passant {
+                moves.push(Move::new(tile_start, tile_end, MoveFlags::EnPassant));
+            } else if movement.get_bit(tile_end) || captures.get_bit(tile_end) {
+                if tile_end.rank() == (if piece_color == PieceColor::White { 7 } else { 0 }) {
+                    moves.push(Move::new(tile_start, tile_end, MoveFlags::KnightPromotion));
+                    moves.push(Move::new(tile_start, tile_end, MoveFlags::BishopPromotion));
+                    moves.push(Move::new(tile_start, tile_end, MoveFlags::RookPromotion));
+                    moves.push(Move::new(tile_start, tile_end, MoveFlags::QueenPromotion));
+                } else if tile_end == double_push_tile {
+                    moves.push(Move::new(tile_start, tile_end, MoveFlags::DoublePush));
+                } else {
+                    moves.push(Move::new(tile_start, tile_end, MoveFlags::None));
                 }
             }
         }
@@ -251,123 +287,115 @@ impl Piece {
         moves
     }
 
-    fn generate_knight_moves(board: &Board, position: Position, piece_color: PieceColor) -> Vec<Move> {
+    fn generate_knight_moves(board: &Board, tile_start: Tile, piece_color: PieceColor) -> Vec<Move> {
         let mut moves = Vec::with_capacity(MAX_LEGAL_MOVES);
         
-        let mut mask = Bitboard::new(KNIGHT_MASKS[position.square()]);
+        let mut mask = Bitboard::new(KNIGHT_MASKS[tile_start.index()]);
         mask &= !board.color(piece_color); // Avoid capturing friendly pieces.
 
-        for r in 0..8 {
-            for f in 0..8 {
-                let pos = Position::new(r, f);
-                
-                if mask.get_bit(pos) {
-                    moves.push(Move::new(position, pos, MoveFlags::None));
-                }
+        for square in 0..64 {
+            let tile_end = Tile::new(square);
+
+            if mask.get_bit(tile_end) {
+                moves.push(Move::new(tile_start, tile_end, MoveFlags::None));
             }
         }
 
         moves
     }
 
-    fn generate_rook_moves(board: &Board, position: Position, piece_color: PieceColor) -> Vec<Move> {
+    fn generate_rook_moves(board: &Board, tile_start: Tile, piece_color: PieceColor) -> Vec<Move> {
         let mut moves = Vec::with_capacity(MAX_LEGAL_MOVES);
 
         // Retreive the mask through the magic indexing system.
-        let magic = &ROOK_MAGICS[position.square()];
+        let magic = &ROOK_MAGICS[tile_start.index()];
 
         let mut mask = get_rook_mask(Board::generate_magic_index(magic, &board.occupied()));
         mask &= !board.color(piece_color); // Avoid capturing friendly pieces.
 
-        for r in 0..8 {
-            for f in 0..8 {
-                let pos = Position::new(r, f);
-                
-                if mask.get_bit(pos) {
-                    moves.push(Move::new(position, pos, MoveFlags::None));
-                }
+        for square in 0..64 {
+            let tile_end = Tile::new(square);
+
+            if mask.get_bit(tile_end) {
+                moves.push(Move::new(tile_start, tile_end, MoveFlags::None));
             }
         }
 
         moves
     }
 
-    fn generate_bishop_moves(board: &Board, position: Position, piece_color: PieceColor) -> Vec<Move> {
+    fn generate_bishop_moves(board: &Board, tile_start: Tile, piece_color: PieceColor) -> Vec<Move> {
         let mut moves = Vec::with_capacity(MAX_LEGAL_MOVES);
 
         // Retreive the mask through the magic indexing system.
-        let magic = &BISHOP_MAGICS[position.square()];
+        let magic = &BISHOP_MAGICS[tile_start.index()];
 
         let mut mask = get_bishop_mask(Board::generate_magic_index(magic, &board.occupied()));
         mask &= !board.color(piece_color); // Avoid capturing friendly pieces.
 
-        for r in 0..8 {
-            for f in 0..8 {
-                let pos = Position::new(r, f);
-                
-                if mask.get_bit(pos) {
-                    moves.push(Move::new(position, pos, MoveFlags::None));
-                }
+        for square in 0..64 {
+            let tile_end = Tile::new(square);
+
+            if mask.get_bit(tile_end) {
+                moves.push(Move::new(tile_start, tile_end, MoveFlags::None));
             }
         }
 
         moves
     }
 
-    fn generate_king_moves(board: &Board, position: Position, piece_color: PieceColor) -> Vec<Move> {
+    fn generate_king_moves(board: &Board, tile_start: Tile, piece_color: PieceColor) -> Vec<Move> {
         let mut moves = Vec::with_capacity(MAX_LEGAL_MOVES);
         
-        let mut mask = Bitboard::new(KING_MASKS[position.square()]);
+        let mut mask = Bitboard::new(KING_MASKS[tile_start.index()]);
         mask &= !board.color(piece_color); // Avoid capturing friendly pieces.
 
         let occupied = board.occupied();
 
         match board.castle_rights[piece_color.to_index()] {
             CastleRights::KingSide => {
-                let can_castle = !(position.is_under_attack(board, piece_color)
-                || position.transform(0, 1).is_under_attack(board, piece_color) || occupied.get_bit(position.transform(0, 1))
-                || position.transform(0, 2).is_under_attack(board, piece_color) || occupied.get_bit(position.transform(0, 2)));
+                let can_castle = !(tile_start.is_under_attack(board, !piece_color)
+                || tile_start.transform(0, 1).is_under_attack(board, !piece_color) || occupied.get_bit(tile_start.transform(0, 1))
+                || tile_start.transform(0, 2).is_under_attack(board, !piece_color) || occupied.get_bit(tile_start.transform(0, 2)));
 
                 if can_castle {
-                    moves.push(Move::new(position, position.transform(0, 2), MoveFlags::Castling));
+                    moves.push(Move::new(tile_start, tile_start.transform(0, 2), MoveFlags::Castling));
                 }
             },
             CastleRights::QueenSide => {
-                let can_castle = !(position.is_under_attack(board, piece_color)
-                || position.transform(0, -1).is_under_attack(board, piece_color) || occupied.get_bit(position.transform(0, -1))
-                || position.transform(0, -2).is_under_attack(board, piece_color) || occupied.get_bit(position.transform(0, -2)));
+                let can_castle = !(tile_start.is_under_attack(board, !piece_color)
+                || tile_start.transform(0, -1).is_under_attack(board, !piece_color) || occupied.get_bit(tile_start.transform(0, -1))
+                || tile_start.transform(0, -2).is_under_attack(board, !piece_color) || occupied.get_bit(tile_start.transform(0, -2)));
 
                 if can_castle {
-                    moves.push(Move::new(position, position.transform(0, -2), MoveFlags::Castling));
+                    moves.push(Move::new(tile_start, tile_start.transform(0, -2), MoveFlags::Castling));
                 }
             },
             CastleRights::Both => {
-                let can_castle = !(position.is_under_attack(board, piece_color)
-                || position.transform(0, 1).is_under_attack(board, piece_color) || occupied.get_bit(position.transform(0, 1))
-                || position.transform(0, 2).is_under_attack(board, piece_color) || occupied.get_bit(position.transform(0, 2)));
-                
-                if can_castle {
-                    moves.push(Move::new(position, position.transform(0, 2), MoveFlags::Castling));
-                }
-                
-                let can_castle = !(position.is_under_attack(board, piece_color)
-                || position.transform(0, -1).is_under_attack(board, piece_color) || occupied.get_bit(position.transform(0, -1))
-                || position.transform(0, -2).is_under_attack(board, piece_color) || occupied.get_bit(position.transform(0, -2)));
+                let can_castle = !(tile_start.is_under_attack(board, !piece_color)
+                || tile_start.transform(0, 1).is_under_attack(board, !piece_color) || occupied.get_bit(tile_start.transform(0, 1))
+                || tile_start.transform(0, 2).is_under_attack(board, !piece_color) || occupied.get_bit(tile_start.transform(0, 2)));
 
                 if can_castle {
-                    moves.push(Move::new(position, position.transform(0, -2), MoveFlags::Castling));
+                    moves.push(Move::new(tile_start, tile_start.transform(0, 2), MoveFlags::Castling));
+                }
+                
+                let can_castle = !(tile_start.is_under_attack(board, !piece_color)
+                || tile_start.transform(0, -1).is_under_attack(board, !piece_color) || occupied.get_bit(tile_start.transform(0, -1))
+                || tile_start.transform(0, -2).is_under_attack(board, !piece_color) || occupied.get_bit(tile_start.transform(0, -2)));
+
+                if can_castle {
+                    moves.push(Move::new(tile_start, tile_start.transform(0, -2), MoveFlags::Castling));
                 }
             },
             CastleRights::None => {}
         }
 
-        for r in 0..8 {
-            for f in 0..8 {
-                let pos = Position::new(r, f);
-                
-                if mask.get_bit(pos) {
-                    moves.push(Move::new(position, pos, MoveFlags::None));
-                }
+        for square in 0..64 {
+            let tile_end = Tile::new(square);
+
+            if mask.get_bit(tile_end) {
+                moves.push(Move::new(tile_start, tile_end, MoveFlags::None));
             }
         }
 
@@ -388,10 +416,10 @@ pub enum CastleRights {
 /// A structure representing a move.
 #[derive(Debug)]
 pub struct Move {
-    /// The position the piece is moving from.
-    pub initial: Position,
-    /// The position the piece is moving to.
-    pub end: Position,
+    /// The tile the piece is moving from.
+    pub initial: Tile,
+    /// The tile the piece is moving to.
+    pub end: Tile,
     /// Any additional metadata with the move.
     pub metadata: MoveFlags
 }
@@ -411,7 +439,7 @@ pub enum MoveFlags {
 
 impl Move {
     /// Creates a new move.
-    pub fn new(initial: Position, end: Position, metadata: MoveFlags) -> Self {
+    pub fn new(initial: Tile, end: Tile, metadata: MoveFlags) -> Self {
         Move {
             initial,
             end,
