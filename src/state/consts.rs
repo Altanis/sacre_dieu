@@ -192,7 +192,7 @@ macro_rules! include_bytes_aligned {
 }
 
 pub fn get_bishop_mask(idx: usize) -> Bitboard {
-    cast_slice(include_bytes_aligned!(64, "../../bitboards/bishop.bin"))[idx]
+    cast_slice(include_bytes_aligned!(64, "../../bitboards/bishop2.bin"))[idx]
 }
 
 pub fn get_rook_mask(idx: usize) -> Bitboard {

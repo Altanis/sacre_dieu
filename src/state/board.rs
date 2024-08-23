@@ -45,8 +45,8 @@ impl Bitboard {
     pub fn render_bitboard(&self, tile: Tile) {
         for row in (0..8).rev() {
             for col in 0..8 {
-                let current_tile = Tile::new(row, col);
-                let is_set = self.get_bit(tile);
+                let current_tile = Tile::new(row, col).unwrap();
+                let is_set = self.get_bit(current_tile);
     
                 print!( "| ");
                 if current_tile == tile {
@@ -76,7 +76,7 @@ impl Bitboard {
         let r = lsb_index as u8 / 8;
         let f = lsb_index as u8 % 8;
         
-        Tile::new(r, f)
+        Tile::new(r, f).unwrap()
     }
 }
 
@@ -215,8 +215,8 @@ impl Board {
                     let piece_type = PIECE_MAP.get(&char.to_ascii_lowercase()).expect("").clone();
                     chess_board.board[(rank * 8 + file) as usize] = Some(Piece::new(piece_type.clone(), piece_color));
 
-                    chess_board.piece_bitboard[piece_type.to_index()].set_bit(Tile::new(rank, file));
-                    chess_board.piece_bitboard[piece_color.to_index()].set_bit(Tile::new(rank, file));
+                    chess_board.piece_bitboard[piece_type.to_index()].set_bit(Tile::new(rank, file).expect("invalid coordinate"));
+                    chess_board.piece_bitboard[piece_color.to_index()].set_bit(Tile::new(rank, file).expect("invalid coordinate"));
 
                     file += 1;
                 }
@@ -252,7 +252,7 @@ impl Board {
 
         for square in 0..64 {
             if let Some(p) = self.board[square].clone() && p.piece_color == self.side_to_move {
-                moves.extend(p.generate_moves(self, Tile::new(square as u8 / 8, square as u8 % 8)));
+                moves.extend(p.generate_moves(self, Tile::new(square as u8 / 8, square as u8 % 8).unwrap()));
             }
         }
 
@@ -291,9 +291,14 @@ impl Board {
                     *castle_rights = if *castle_rights == CastleRights::KingSide { CastleRights::None } else { CastleRights::QueenSide };
                 }
             }
+        }
 
-            if let Some(ref piece) = end_piece && piece.piece_type == PieceType::Rook {
-                // Can't castle with a dead rook
+        if let Some(ref piece) = end_piece && piece.piece_type == PieceType::Rook {
+            // Can't castle with a dead rook
+            let castle_rights = &mut self.castle_rights[piece.piece_color.to_index()];
+            let correct_rank = if piece.piece_color == PieceColor::White { 0 } else { 7 };
+
+            if *castle_rights != CastleRights::None && piece_move.end.rank == correct_rank {
                 if piece_move.end.file == 0 {
                     *castle_rights = if *castle_rights == CastleRights::QueenSide { CastleRights::None } else { CastleRights::KingSide };
                 } else if piece_move.end.file == 7 {
@@ -307,9 +312,18 @@ impl Board {
         match piece_move.metadata {
             MoveFlags::DoublePush => {
                 let direction = if initial_piece.piece_color == PieceColor::White { -1 } else { 1 };
-                self.en_passant = Some(piece_move.end.transform(direction, 0));
+                self.en_passant = Some(piece_move.end.transform(direction, 0).unwrap());
             },
-            // MoveFlags::EnPassant => {},
+            MoveFlags::EnPassant => {
+                let direction = if initial_piece.piece_color == PieceColor::White { -1 } else { 1 };
+                let capture_position = piece_move.end.transform(direction * 1, 0).unwrap();
+
+                let piece = &self.board[capture_position.index()].as_ref().expect("en passant on a nothing piece");
+
+                self.piece_bitboard[piece.piece_type.to_index()].clear_bit(capture_position);
+                self.piece_bitboard[piece.piece_color.to_index()].clear_bit(capture_position);
+                self.board[capture_position.index()] = None;
+            },
             MoveFlags::Castling => {
                 self.castle_rights[initial_piece.piece_color.to_index()] = CastleRights::None;
                 let king_side = (piece_move.end.file - piece_move.initial.file) == 2;
@@ -317,12 +331,12 @@ impl Board {
                 let old_rook_tile = Tile::new(
                     if initial_piece.piece_color == PieceColor::White { 0 } else { 7 }, 
                     if king_side { 7 } else { 0 }
-                );
+                ).unwrap();
 
                 let new_rook_tile = Tile::new(
                     if initial_piece.piece_color == PieceColor::White { 0 } else { 7 }, 
                     if king_side { 5 } else { 3 }
-                );
+                ).unwrap();
 
                 self.piece_bitboard[PieceType::Rook.to_index()].clear_bit(old_rook_tile);
                 self.piece_bitboard[initial_piece.piece_color.to_index()].clear_bit(old_rook_tile);
@@ -352,7 +366,7 @@ impl Board {
                 self.piece_bitboard[PieceType::Queen.to_index()].set_bit(piece_move.end);
                 self.board[piece_move.end.index()] = Some(Piece::new(PieceType::Queen, initial_piece.piece_color));
             },
-            _ => {}
+            MoveFlags::None => {}
         }
     }
 
@@ -369,10 +383,8 @@ impl Board {
             let mut board = self.clone();
             board.make_move(piece_move, false);
 
-            let colored_king_bitboard = board.colored_piece(PieceType::King, board.side_to_move);
-            let square = colored_king_bitboard.board.trailing_zeros();
-            let (rank, file) = (square / 8, square % 8);
-            let tile = Tile::new(rank as u8, file as u8);
+            let mut colored_king_bitboard = board.colored_piece(PieceType::King, board.side_to_move);
+            let tile = colored_king_bitboard.pop_lsb();
 
             if tile.is_under_attack(&board, !board.side_to_move) {
                 continue;
@@ -396,29 +408,17 @@ impl Board {
         let mut num_positions = 0;
 
         for piece_move in moves.iter() {
-            let cur_code = format!("{}{}", piece_move.initial.get_code(), piece_move.end.get_code());
+            let cur_code = piece_move.to_uci(self.side_to_move);
 
             let mut board = self.clone();
-            // let mut dbg = last_moves.len() == 4 && last_moves[0] == "d2d3" && last_moves[1] == "g7g6" && last_moves[2] == "c1h6" && last_moves[3] == "f8h6" && cur_code == "e1d2";
-            // let mut dbg = last_moves.len() == 4 && last_moves[0] == "b1a3" && last_moves[1] == "b7b6" && last_moves[2] == "e2e3" && last_moves[3] == "c8a6" && cur_code == "e1e2";
-            let mut dbg = last_moves.len() == 4 && last_moves[0] == "d2d3" && last_moves[1] == "b7b5" && last_moves[2] == "e1d2" && last_moves[3] == "b5b4";
+            // let dbg = last_moves.len() == 3 && last_moves[0] == "f1f2" && last_moves[1] == "b2a1n" && last_moves[2] == "d1c2";
+            // let dbg = last_moves.len() == 3 && last_moves[0] == "f1f2" && last_moves[1] == "b2a1r" && last_moves[2] == "d1a1";
+            let dbg = last_moves.len() == 4 && last_moves[0] == "h1g2" && last_moves[1] == "a1b2" && last_moves[2] == "g2f1" && last_moves[3] == "b2a1";
 
-            // if last_moves.len() >= 2 && last_moves[0] == "b1a3" && last_moves[1] == "a7a5" {
-            //     dbg = true;
-            //     board.occupied().render_bitboard(Position::new(0, 0));
-            //     println!("\n\n");
-            // }
-            
             board.make_move(piece_move, dbg);
-            // if last_moves.len() >= 2 && last_moves[0] == "b1a3" && last_moves[1] == "a7a5" {
-            //     println!("{} - 1", format!("{}{}", piece_move.initial.get_code(), piece_move.end.get_code()));
-            //     board.occupied().render_bitboard(Position::new(0, 0));
-            // }
 
-            let colored_king_bitboard = board.colored_piece(PieceType::King, board.side_to_move);
-            let square = colored_king_bitboard.board.trailing_zeros();
-            let (rank, file) = (square / 8, square % 8);
-            let tile = Tile::new(rank as u8, file as u8);
+            let mut colored_king_bitboard = board.colored_piece(PieceType::King, board.side_to_move);
+            let tile = colored_king_bitboard.pop_lsb();
 
             if tile.is_under_attack(&board, !board.side_to_move) {
                 continue;
@@ -433,11 +433,6 @@ impl Board {
             if dbg {
                 println!("{} - {}", cur_code, new_nodes);
             }
-
-            // println!("{}{}{} - {}", "\t".repeat(initial_depth - depth), piece_move.initial.get_code(), piece_move.end.get_code(), new_nodes);
-            // if initial_depth == depth {
-                // println!("{}{} - {}", piece_move.initial.get_code(), piece_move.end.get_code(), new_nodes);
-            // }
 
             num_positions += new_nodes;
         }

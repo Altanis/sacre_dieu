@@ -93,12 +93,13 @@ pub struct Tile {
 
 impl Tile {
     /// Instantiates a new tile.
-    pub fn new(rank: u8, file: u8) -> Tile {
+    pub fn new(rank: u8, file: u8) -> Option<Tile> {
         if rank > 7 || file > 7 {
-            panic!("invalid position {} {}", rank, file);
+            // paniep!("invalid position {} {}", rank, file);
+            return None;
         }
 
-        Tile { rank, file }
+        Some(Tile { rank, file })
     }
 
     /// Whether or not a tile is valid.
@@ -112,8 +113,7 @@ impl Tile {
     }
 
     /// Returns a transformed tile.
-    pub fn transform(&self, offset_rank: i8, offset_file: i8) -> Self {
-        // dbg!(&self, offset_rank, offset_file);
+    pub fn transform(&self, offset_rank: i8, offset_file: i8) -> Option<Self> {
         Tile::new((self.rank as i8 + offset_rank) as u8, (self.file as i8 + offset_file) as u8)
     }
 
@@ -131,7 +131,7 @@ impl Tile {
         let rank = code.chars().nth(1).expect("Code doesn't have rank").to_digit(10).expect("Rank can't be converted to number") as u8 - 1;
         let file = code.chars().nth(0).expect("Code doesn't have file") as u8 - b'a';
 
-        Tile::new(rank, file)
+        Tile::new(rank, file).unwrap()
     }
 
     /// Whether or not a code is valid.
@@ -197,15 +197,28 @@ impl Piece {
             PieceColor::White => (Bitboard::new(WHITE_PAWN_MASK[tile_start.index()].0), Bitboard::new(WHITE_PAWN_MASK[tile_start.index()].1)),
             PieceColor::Black => (Bitboard::new(BLACK_PAWN_MASK[tile_start.index()].0), Bitboard::new(BLACK_PAWN_MASK[tile_start.index()].1))
         };
+
+
+        let single_push_tile = tile_start.transform(1 * direction, 0);
         let double_push_tile = tile_start.transform(2 * direction, 0);
 
-        if tile_start.rank != (if piece_color == PieceColor::White { 1 } else { 6 }) || board.occupied().get_bit(double_push_tile) {
-            movement.clear_bit(double_push_tile);
+        if let Some(dpt) = double_push_tile {
+            let start_rank = if piece_color == PieceColor::White { 1 } else { 6 };
+            let is_double_push_invalid = tile_start.rank != start_rank || board.occupied().get_bit(dpt);
+
+            if is_double_push_invalid {
+                movement.clear_bit(dpt);
+            }
         }
 
-        if board.occupied().get_bit(tile_start.transform(1 * direction, 0)) {
-            movement.clear_bit(tile_start.transform(1 * direction, 0));
-            movement.clear_bit(double_push_tile);
+        if let Some(spt) = single_push_tile {
+            if board.occupied().get_bit(spt) {
+                movement.clear_bit(spt);
+
+                if let Some(dpt) = double_push_tile {
+                    movement.clear_bit(dpt);
+                }
+            }
         }
 
         // movement &= !board.occupied(); // Avoid moving onto pieces.
@@ -214,12 +227,12 @@ impl Piece {
         // Check for en passant captures.
         let mut en_passant = None;
         if let Some(ep) = board.en_passant {
-            if tile_start.file != 7 && tile_start.transform(1 * direction, 1) == ep {
+            if tile_start.transform(1 * direction, 1) == Some(ep) {
                 en_passant = Some(ep);
                 captures.set_bit(ep);
             }
 
-            if tile_start.file != 0 && tile_start.transform(1 * direction, -1) == ep {
+            if tile_start.transform(1 * direction, -1) == Some(ep) {
                 en_passant = Some(ep);
                 captures.set_bit(ep);
             }
@@ -236,7 +249,7 @@ impl Piece {
                 moves.push(Move::new(tile_start, tile_end, MoveFlags::BishopPromotion));
                 moves.push(Move::new(tile_start, tile_end, MoveFlags::RookPromotion));
                 moves.push(Move::new(tile_start, tile_end, MoveFlags::QueenPromotion));
-            } else if tile_end == double_push_tile {
+            } else if Some(tile_end) == double_push_tile {
                 moves.push(Move::new(tile_start, tile_end, MoveFlags::DoublePush));
             } else {
                 moves.push(Move::new(tile_start, tile_end, MoveFlags::None));
@@ -307,38 +320,66 @@ impl Piece {
 
         match board.castle_rights[piece_color.to_index()] {
             CastleRights::KingSide => {
-                let can_castle = !(tile_start.is_under_attack(board, !piece_color)
-                || tile_start.transform(0, 1).is_under_attack(board, !piece_color) || occupied.get_bit(tile_start.transform(0, 1))
-                || tile_start.transform(0, 2).is_under_attack(board, !piece_color) || occupied.get_bit(tile_start.transform(0, 2)));
+                let first_tile = tile_start.transform(0, 1);
+                let second_tile = tile_start.transform(0, 2);
 
-                if can_castle {
-                    moves.push(Move::new(tile_start, tile_start.transform(0, 2), MoveFlags::Castling));
+                if let Some(first_tile) = first_tile && let Some(second_tile) = second_tile {
+                    let can_castle = !(tile_start.is_under_attack(board, !piece_color)
+                    || first_tile.is_under_attack(board, !piece_color) || occupied.get_bit(first_tile)
+                    || second_tile.is_under_attack(board, !piece_color) || occupied.get_bit(second_tile));
+    
+                    if can_castle {
+                        moves.push(Move::new(tile_start, second_tile, MoveFlags::Castling));
+                    }
                 }
             },
             CastleRights::QueenSide => {
-                let can_castle = !(tile_start.is_under_attack(board, !piece_color)
-                || tile_start.transform(0, -1).is_under_attack(board, !piece_color) || occupied.get_bit(tile_start.transform(0, -1))
-                || tile_start.transform(0, -2).is_under_attack(board, !piece_color) || occupied.get_bit(tile_start.transform(0, -2)));
+                let first_tile = tile_start.transform(0, -1);
+                let second_tile = tile_start.transform(0, -2);
+                let third_tile = tile_start.transform(0, -3);
 
-                if can_castle {
-                    moves.push(Move::new(tile_start, tile_start.transform(0, -2), MoveFlags::Castling));
+                if let Some(first_tile) = first_tile && let Some(second_tile) = second_tile && let Some(third_tile) = third_tile {
+                    let can_castle = !(tile_start.is_under_attack(board, !piece_color)
+                    || first_tile.is_under_attack(board, !piece_color) || occupied.get_bit(first_tile)
+                    || second_tile.is_under_attack(board, !piece_color) || occupied.get_bit(second_tile)
+                    || occupied.get_bit(third_tile));
+    
+                    if can_castle {
+                        moves.push(Move::new(tile_start, second_tile, MoveFlags::Castling));
+                    }
                 }
             },
             CastleRights::Both => {
-                let can_castle = !(tile_start.is_under_attack(board, !piece_color)
-                || tile_start.transform(0, 1).is_under_attack(board, !piece_color) || occupied.get_bit(tile_start.transform(0, 1))
-                || tile_start.transform(0, 2).is_under_attack(board, !piece_color) || occupied.get_bit(tile_start.transform(0, 2)));
-
-                if can_castle {
-                    moves.push(Move::new(tile_start, tile_start.transform(0, 2), MoveFlags::Castling));
+                {
+                    let first_tile = tile_start.transform(0, 1);
+                    let second_tile = tile_start.transform(0, 2);
+    
+                    if let Some(first_tile) = first_tile && let Some(second_tile) = second_tile {
+                        let can_castle = !(tile_start.is_under_attack(board, !piece_color)
+                        || first_tile.is_under_attack(board, !piece_color) || occupied.get_bit(first_tile)
+                        || second_tile.is_under_attack(board, !piece_color) || occupied.get_bit(second_tile));
+        
+                        if can_castle {
+                            moves.push(Move::new(tile_start, second_tile, MoveFlags::Castling));
+                        }
+                    }
                 }
-                
-                let can_castle = !(tile_start.is_under_attack(board, !piece_color)
-                || tile_start.transform(0, -1).is_under_attack(board, !piece_color) || occupied.get_bit(tile_start.transform(0, -1))
-                || tile_start.transform(0, -2).is_under_attack(board, !piece_color) || occupied.get_bit(tile_start.transform(0, -2)));
 
-                if can_castle {
-                    moves.push(Move::new(tile_start, tile_start.transform(0, -2), MoveFlags::Castling));
+                {
+                    let first_tile = tile_start.transform(0, -1);
+                    let second_tile = tile_start.transform(0, -2);
+                    let third_tile = tile_start.transform(0, -3);
+    
+                    if let Some(first_tile) = first_tile && let Some(second_tile) = second_tile && let Some(third_tile) = third_tile {
+                        let can_castle = !(tile_start.is_under_attack(board, !piece_color)
+                        || first_tile.is_under_attack(board, !piece_color) || occupied.get_bit(first_tile)
+                        || second_tile.is_under_attack(board, !piece_color) || occupied.get_bit(second_tile)
+                        || occupied.get_bit(third_tile));
+        
+                        if can_castle {
+                            moves.push(Move::new(tile_start, second_tile, MoveFlags::Castling));
+                        }
+                    }
                 }
             },
             CastleRights::None => {}
@@ -396,5 +437,19 @@ impl Move {
             end,
             metadata
         }
+    }
+
+    /// Converts a move to its UCI equivalent.
+    pub fn to_uci(&self, side_to_move: PieceColor) -> String {
+        let mut cur_code = format!("{}{}", self.initial.get_code(), self.end.get_code());
+        match self.metadata {
+            MoveFlags::KnightPromotion => cur_code += if side_to_move == PieceColor::White { "N" } else { "n" },
+            MoveFlags::BishopPromotion => cur_code += if side_to_move == PieceColor::White { "B" } else { "b" },
+            MoveFlags::RookPromotion => cur_code += if side_to_move == PieceColor::White { "R" } else { "r" },
+            MoveFlags::QueenPromotion => cur_code += if side_to_move == PieceColor::White { "Q" } else { "q" },
+            _ => {}
+        }
+
+        cur_code
     }
 }
