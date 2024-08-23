@@ -391,7 +391,8 @@ impl Board {
 
             let mut board = self.clone();
             // let mut dbg = last_moves.len() == 4 && last_moves[0] == "d2d3" && last_moves[1] == "g7g6" && last_moves[2] == "c1h6" && last_moves[3] == "f8h6" && cur_code == "e1d2";
-            let mut dbg = last_moves.len() == 4 && last_moves[0] == "b1a3" && last_moves[1] == "b7b6" && last_moves[2] == "e2e3" && last_moves[3] == "c8a6" && cur_code == "e1e2";
+            // let mut dbg = last_moves.len() == 4 && last_moves[0] == "b1a3" && last_moves[1] == "b7b6" && last_moves[2] == "e2e3" && last_moves[3] == "c8a6" && cur_code == "e1e2";
+            let mut dbg = last_moves.len() == 4 && last_moves[0] == "d2d3" && last_moves[1] == "b7b5" && last_moves[2] == "e1d2" && last_moves[3] == "b5b4";
 
             // if last_moves.len() >= 2 && last_moves[0] == "b1a3" && last_moves[1] == "a7a5" {
             //     dbg = true;
@@ -421,12 +422,12 @@ impl Board {
             let new_nodes = board.perft(depth - 1, initial_depth, &mut moves).0;
 
             if dbg {
-                // println!("{} - {}", cur_code, new_nodes);
+                println!("{} - {}", cur_code, new_nodes);
             }
 
             // println!("{}{}{} - {}", "\t".repeat(initial_depth - depth), piece_move.initial.get_code(), piece_move.end.get_code(), new_nodes);
             // if initial_depth == depth {
-            //     println!("{}{} - {}", piece_move.initial.get_code(), piece_move.end.get_code(), new_nodes);
+                // println!("{}{} - {}", piece_move.initial.get_code(), piece_move.end.get_code(), new_nodes);
             // }
 
             num_positions += new_nodes;

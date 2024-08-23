@@ -17,7 +17,7 @@ fn main() {
 
     // let board = state::board::Board::new("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -");
     let board = state::board::Board::new("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-    // dbg!(board.perft(3, 3, &mut vec![]));
+    // dbg!(board.perft(5, 5, &mut vec![]));
 
     let time = std::time::Instant::now();
     let nodes = board.pure_perft(5);

@@ -148,8 +148,8 @@ impl Tile {
         let enemy_kings = board.colored_piece(PieceType::King, enemy_side);
 
         let pawn_attacks = Bitboard::new(match enemy_side {
-            PieceColor::White => WHITE_PAWN_MASK[self.index()].1,
-            PieceColor::Black => BLACK_PAWN_MASK[self.index()].1,
+            PieceColor::White => BLACK_PAWN_MASK[self.index()].1,
+            PieceColor::Black => WHITE_PAWN_MASK[self.index()].1,
         }) & enemy_pawns;
         let knight_attacks = Bitboard::new(KNIGHT_MASKS[self.index()]) & enemy_knights;
         let bishop_attacks = get_bishop_mask(Board::generate_magic_index(&BISHOP_MAGICS[self.index()], &board.occupied())) & enemy_bishops;
