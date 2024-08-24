@@ -1,10 +1,10 @@
 #![feature(let_chains)]
 #![feature(string_remove_matches)]
 
-use state::{board::Board, consts::{get_bishop_mask, get_rook_mask, BISHOP_MAGICS, ROOK_MAGICS}, piece::{CastleRights, MoveFlags, PieceColor, Tile}};
+use engine::{board::Board, consts::{get_bishop_mask, get_rook_mask, BISHOP_MAGICS, ROOK_MAGICS}, piece::{CastleRights, MoveFlags, PieceColor, Tile}};
 use colored::Colorize;
 
-mod state;
+mod engine;
 
 const EPD_FILE: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 ;D1 20 ;D2 400 ;D3 8902 ;D4 197281 ;D5 4865609 ;D6 119060324
 r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ;D1 48 ;D2 2039 ;D3 97862 ;D4 4085603 ;D5 193690690
@@ -166,7 +166,7 @@ fn main() {
                 .parse::<u64>().expect("Nodes invalid");
 
             let time = std::time::Instant::now();
-            let nodes = board.pure_perft(depth);
+            let nodes = board.perft(depth);
             let time = time.elapsed();
 
             if nodes == expected_nodes {

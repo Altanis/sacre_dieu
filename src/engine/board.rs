@@ -371,7 +371,7 @@ impl Board {
     }
 
     /// Performance testing, move path enumerating function.
-    pub fn pure_perft(&self, depth: usize) -> u64 {
+    pub fn perft(&self, depth: usize) -> u64 {
         if depth == 0 {
             return 1;
         }
@@ -391,13 +391,13 @@ impl Board {
             }
 
             board.side_to_move = !board.side_to_move;
-            num_moves += board.pure_perft(depth - 1);
+            num_moves += board.perft(depth - 1);
         }
 
         num_moves
     }
 
-    pub fn perft(&self, depth: usize, initial_depth: usize, last_moves: &mut Vec<String>) -> (u64, std::time::Duration) {
+    pub fn debug_perft(&self, depth: usize, initial_depth: usize, last_moves: &mut Vec<String>) -> (u64, std::time::Duration) {
         let time = std::time::Instant::now();
 
         if depth == 0 {
@@ -428,7 +428,7 @@ impl Board {
             moves.push(cur_code.clone());
 
             board.side_to_move = !board.side_to_move;
-            let new_nodes = board.perft(depth - 1, initial_depth, &mut moves).0;
+            let new_nodes = board.debug_perft(depth - 1, initial_depth, &mut moves).0;
 
             if dbg {
                 println!("{} - {}", cur_code, new_nodes);
