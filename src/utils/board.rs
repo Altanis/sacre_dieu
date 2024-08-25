@@ -389,51 +389,6 @@ impl Board {
         }
     }
 
-    /// Searches for a move with the highest evaluation.
-    pub fn search(&self, depth: usize, mut alpha: i32, beta: i32) -> (i32, u64, Option<Move>) {
-        if depth == 0 {
-            return (eval::evaluate_board(self), 1, None);
-        }
-
-        let moves = self.generate_moves();
-
-        if moves.is_empty() {
-            if self.in_check(self.side_to_move) {
-                return (I32_NEGATIVE_INFINITY + (depth as i32), 0, None); // Checkmate.
-            } else {
-                return (0, 0, None); // Stalemate.
-            }
-        }
-
-        let mut best_move = None;
-        let mut best_eval = I32_NEGATIVE_INFINITY;
-        let mut nodes = 0;
-
-        for piece_move in moves.iter() {
-            if let Some(board) = self.make_move(piece_move) {
-                let (mut eval, positions, _) = board.search(depth - 1, -beta, -alpha);
-                
-                eval *= -1;
-                nodes += positions;
-    
-                if eval > best_eval || best_move.is_none() {
-                    best_eval = eval;
-                    best_move = Some(piece_move.clone());
-                }
-    
-                if eval >= beta {
-                    return (beta, nodes, best_move);
-                }
-    
-                if eval > alpha {
-                    alpha = eval;
-                }
-            }
-        }
-
-        (best_eval, nodes, best_move)
-    }
-
     /// Performance testing, move path enumerating function.
     pub fn perft(&self, depth: usize) -> u64 {
         if depth == 0 {
