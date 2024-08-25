@@ -1,10 +1,15 @@
 #![feature(let_chains)]
 #![feature(string_remove_matches)]
 
-use engine::{board::Board, consts::{get_bishop_mask, get_rook_mask, BISHOP_MAGICS, ROOK_MAGICS}, piece::{CastleRights, MoveFlags, PieceColor, Tile}};
+use std::sync::mpsc::channel;
+
+use uci::handle_board;
+use utils::{board::Board, consts::{get_bishop_mask, get_rook_mask, BISHOP_MAGICS, ROOK_MAGICS}, piece::{CastleRights, MoveFlags, PieceColor, Tile}};
 use colored::Colorize;
 
 mod engine;
+mod utils;
+mod uci;
 
 const EPD_FILE: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 ;D1 20 ;D2 400 ;D3 8902 ;D4 197281 ;D5 4865609 ;D6 119060324
 r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ;D1 48 ;D2 2039 ;D3 97862 ;D4 4085603 ;D5 193690690
@@ -140,86 +145,17 @@ rnbqkb1r/ppppp1pp/7n/4Pp2/8/8/PPPP1PPP/RNBQKBNR w KQkq f6 0 3 ;D5 11139762";
 fn main() {
     std::env::set_var("RUST_BACKTRACE", "1");
 
-    let mut lines = EPD_FILE.split('\n');
-    let length = lines.clone().count();
+    let time = std::time::Instant::now();
+    let board = Board::new("rnb1kbnr/3p2pp/4p3/qB2N3/4P3/P1N5/P1PB1PPP/R2R2K1 b - - 5 17");
+    let (eval, _, moves) = board.search(5, -i32::MAX, i32::MAX);
+    dbg!(time.elapsed(), eval, moves);
 
-    let mut idx = 0;
-    while let Some(line) = lines.next() {
-        idx += 1;
+    let (sender, receiver) = channel();
+    let _ = std::thread::spawn(move || handle_board(receiver));
 
-        let mut lines = line.split(" ;");
-    
-        let fen = lines.next().expect("expected a FEN value.");
-        let board = Board::new(fen);
-
-        print!("{}", "[INIT] ".green());
-        println!("Board with FEN {} initialized. ({} / {})", fen, idx, length);
-
-        while let Some(depth) = lines.next() {
-            let mut depth_str = depth.split(' ');
-            
-            let depth = depth_str.next().expect("Expected Dx")
-                .replace("D", "")
-                .parse::<usize>().expect("Depth invalid");
-
-            let expected_nodes = depth_str.next().expect("Expected expected nodes")
-                .parse::<u64>().expect("Nodes invalid");
-
-            let time = std::time::Instant::now();
-            let nodes = board.perft(depth);
-            let time = time.elapsed();
-
-            if nodes == expected_nodes {
-                println!("{}", format!("[PASS] Time: {:?}, Depth: {}, Nodes: {}, NPS: {}", time, depth, nodes, (nodes as f64) / time.as_secs_f64()).green());
-            } else {
-                panic!("{}", format!("[FAIL] Time: {:?}, Depth: {}, Nodes: {}, Expected Nodes: {}", time, depth, nodes, expected_nodes).red());
-            }
-        }
-
-        println!("{}", "Board passed. Moving onto next...\n".green());
+    let mut buffer = String::new();
+    while std::io::stdin().read_line(&mut buffer).unwrap() > 0 {
+        uci::handle_command(buffer.trim(), sender.clone());
+        buffer.clear();
     }
-
-    println!("{}", "All cases cleared!".green());
-
-    // let mut board = Board::new("B6b/8/8/8/2K5/4k3/8/b4B2 w - - 4 3");
-    // let moves = board.generate_moves();
-    // for m in moves {
-    //     if m.initial == Tile::from_code("a8") && m.end == Tile::from_code("h1") {
-    //         println!("found it.");
-    //         dbg!(m);
-    //     }
-    // }
-
-    // let depth = 5;
-    // let board = Board::new("B6b/8/8/8/2K5/4k3/8/b6B w - - 0 1");
-    
-    // let position = Tile::from_code("a8");
-    // let magic = &BISHOP_MAGICS[position.index()];
-    
-    // board.color(PieceColor::White).render_bitboard(position);
-    // board.color(PieceColor::Black).render_bitboard(position);
-    // // board.occupied().render_bitboard(position);
-
-    // let bitboard = get_bishop_mask(Board::generate_magic_index(magic, &board.occupied()));
-    // bitboard.render_bitboard(position);
-
-    // dbg!(board.perft(depth, depth, &mut vec![]));
-
-
-
-    // for i in 1..=6 {
-    //     let mut depth = i;
-    
-    //     let board = Board::new("r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10");
-    //     // dbg!(board.perft(depth, depth, &mut vec![]));
-    //     let time = std::time::Instant::now();
-    //     let nodes = board.pure_perft(depth);
-    //     let time = time.elapsed();
-    //     println!("Time: {:?}, Nodes: {}, NPS: {}", time, nodes, (nodes as f64) / time.as_secs_f64());
-    // }
-
-    // let time = std::time::Instant::now();
-    // let nodes = board.pure_perft(depth);
-    // let time = time.elapsed();
-    // println!("Time: {:?}, Nodes: {}, NPS: {}", time, nodes, (nodes as f64) / time.as_secs_f64());
 }

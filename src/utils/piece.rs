@@ -406,7 +406,7 @@ pub enum CastleRights {
 }
 
 /// A structure representing a move.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Move {
     /// The tile the piece is moving from.
     pub initial: Tile,
@@ -417,7 +417,7 @@ pub struct Move {
 }
 
 /// An enumeration of different move actions.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum MoveFlags {
     None,
     Castling,
@@ -439,16 +439,39 @@ impl Move {
         }
     }
 
-    /// Converts a move to its UCI equivalent.
-    pub fn to_uci(&self, side_to_move: PieceColor) -> String {
-        let mut cur_code = format!("{}{}", self.initial.get_code(), self.end.get_code());
-        match self.metadata {
-            MoveFlags::KnightPromotion => cur_code += if side_to_move == PieceColor::White { "N" } else { "n" },
-            MoveFlags::BishopPromotion => cur_code += if side_to_move == PieceColor::White { "B" } else { "b" },
-            MoveFlags::RookPromotion => cur_code += if side_to_move == PieceColor::White { "R" } else { "r" },
-            MoveFlags::QueenPromotion => cur_code += if side_to_move == PieceColor::White { "Q" } else { "q" },
-            _ => {}
+    /// Creates a new move from a UCI string.
+    pub fn from_uci(uci: &str) -> Move {
+        if uci.len() != 4 && uci.len() != 5 {
+            panic!("invalid uci move");
         }
+
+        let initial = Tile::from_code(&uci[0..2]);
+        let end = Tile::from_code(&uci[2..4]);
+
+        let metadata = match uci.len() {
+            5 => match uci.chars().nth(4).expect("Invalid UCI move metadata") {
+                'N' | 'n' => MoveFlags::KnightPromotion,
+                'B' | 'b' => MoveFlags::BishopPromotion,
+                'R' | 'r' => MoveFlags::RookPromotion,
+                'Q' | 'q' => MoveFlags::QueenPromotion,
+                _ => MoveFlags::None
+            },
+            _ => MoveFlags::None
+        };
+
+        Move::new(initial, end, metadata)
+    }
+
+    /// Converts a move to its UCI equivalent.
+    pub fn to_uci(&self) -> String {
+        let mut cur_code = format!("{}{}", self.initial.get_code(), self.end.get_code());
+        cur_code += match self.metadata {
+            MoveFlags::KnightPromotion => "n",
+            MoveFlags::BishopPromotion => "b",
+            MoveFlags::RookPromotion => "r",
+            MoveFlags::QueenPromotion => "q",
+            _ => ""
+        };
 
         cur_code
     }

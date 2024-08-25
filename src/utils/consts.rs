@@ -16,6 +16,10 @@ lazy_static::lazy_static! {
     ].into_iter().collect();
 }
 
+// i32 infinities, because -i32::MIN overflows.
+pub const I32_POSITIVE_INFINITY: i32 = i32::MAX;
+pub const I32_NEGATIVE_INFINITY: i32 = -i32::MAX;
+
 // Values of each piece, in centipawns.
 
 pub const PAWN_VALUE: u32 = 100;
