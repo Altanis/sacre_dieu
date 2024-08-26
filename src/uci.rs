@@ -1,5 +1,5 @@
 use std::{rc::Rc, sync::{atomic::{AtomicBool, Ordering}, mpsc::{Receiver, Sender}, Arc}, time::{Duration, Instant}};
-use crate::{engine::search::{self, Searcher}, utils::{board::Board, consts::{I32_NEGATIVE_INFINITY, I32_POSITIVE_INFINITY}, piece::{Move, PieceColor, PieceType}}};
+use crate::{engine::search::{self, Searcher}, utils::{board::Board, consts::{I32_NEGATIVE_INFINITY, I32_POSITIVE_INFINITY}, piece::{PieceColor, PieceType}, piece_move::{Move, MoveFlags}}};
 
 #[derive(Debug)]
 pub enum UCICommands {
@@ -105,23 +105,28 @@ pub fn handle_board(receiver: Receiver<UCICommands>) {
             UCICommands::ForceMove(moves) => {
                 for uci_move in moves.split(' ') {
                     let piece_move = Move::from_uci(uci_move);
-                    let piece = board.board[piece_move.initial.index()].as_ref().expect("no piece on initial move index");
                     
-                    let moves = piece.generate_moves(&board, piece_move.initial);
-                    let real_move = moves
-                        .iter()
-                        .find(|mv| mv.end.index() == piece_move.end.index())
-                        .expect("couldnt find move");
+                    if piece_move.flags == MoveFlags::None {
+                        let piece = board.board[piece_move.initial.index()].as_ref().expect("no piece on initial move index");
+                    
+                        let moves = piece.generate_moves(&board, piece_move.initial);
+                        let real_move = moves
+                            .iter()
+                            .find(|mv| mv.end.index() == piece_move.end.index())
+                            .expect("couldnt find move");
 
-                    board = board.make_move(real_move).unwrap();
+                        board = board.make_move(real_move).unwrap();
+                    } else {
+                        board = board.make_move(&piece_move).unwrap();
+                    }
                 }
             },
             UCICommands::StartSearch(time_limit, depth, white_time, black_time, stop_signal) => {
                 stop_signal.store(false, Ordering::Relaxed);
-                
+
                 let engine_time_left = if board.side_to_move == PieceColor::White { white_time } else { black_time };
                 
-                let (mut eval, mut best_move): (i32, Option<Move>) = (0, None);
+                let (mut eval, mut best_move, mut finished): (i32, Option<Move>, bool) = (0, None, true);
                 let mut searcher = Searcher::new(Duration::MAX, 5, stop_signal);
                 
                 let (alpha, beta) = (I32_NEGATIVE_INFINITY, I32_POSITIVE_INFINITY);
@@ -137,15 +142,18 @@ pub fn handle_board(receiver: Receiver<UCICommands>) {
                 } else if depth != -1 {
                     // Search up to a specified depth.
                     searcher.max_depth = depth as usize;
-                    (eval, best_move) = searcher.search(&board, searcher.max_depth, alpha, beta);
+                    (eval, best_move, finished) = searcher.search(&board, searcher.max_depth, 0, alpha, beta);
                 } else {
                     // Iterative deepening until `stop` is sent.
                     searcher.time_limit = Duration::MAX;
                     (eval, best_move) = searcher.search_timed(&board);
                 }
 
-                // let mut searcher = Searcher::new(Duration::MAX, 5);
-                // let (eval, best_move) = searcher.search(&board, 5, I32_NEGATIVE_INFINITY, I32_POSITIVE_INFINITY);
+                // let (eval, best_move) = searcher.search(&board, 5, alpha, beta);
+
+                if !finished {
+                    println!("[WARN] Results are premature.");
+                }
 
                 let ms_time = searcher.timer.elapsed().as_millis();
                 let nps = searcher.nodes as f64 / (ms_time as f64 / 1000.0);

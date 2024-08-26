@@ -1,6 +1,6 @@
 use std::ops::Not;
 
-use super::{board::{Bitboard, Board, PositionalBitboard}, consts::{get_rook_mask, get_bishop_mask, BISHOP_MAGICS, BLACK_PAWN_MASK, KING_MASKS, KNIGHT_MASKS, MAX_LEGAL_MOVES, ROOK_MAGICS, WHITE_PAWN_MASK}};
+use super::{board::{Bitboard, Board, PositionalBitboard}, consts::{get_bishop_mask, get_rook_mask, BISHOP_MAGICS, BISHOP_VALUE, BLACK_PAWN_MASK, KING_MASKS, KING_VALUE, KNIGHT_MASKS, KNIGHT_VALUE, MAX_LEGAL_MOVES, PAWN_VALUE, QUEEN_VALUE, ROOK_MAGICS, ROOK_VALUE, WHITE_PAWN_MASK}, piece_move::{Move, MoveFlags}};
 
 /// An enum representing the type of chess piece.
 #[derive(Debug, Clone, PartialEq, strum_macros::EnumCount, strum_macros::EnumIter)]
@@ -39,6 +39,18 @@ impl PieceType {
             PieceType::Rook => 5,
             PieceType::Queen => 6,
             PieceType::King => 7,
+        }
+    }
+
+    /// Converts the piece type to a weighted value.
+    pub fn get_value(&self) -> u32 {
+        match self {
+            PieceType::Pawn => PAWN_VALUE,
+            PieceType::Knight => KNIGHT_VALUE,
+            PieceType::Bishop => BISHOP_VALUE,
+            PieceType::Rook => ROOK_VALUE,
+            PieceType::Queen => QUEEN_VALUE,
+            PieceType::King => KING_VALUE
         }
     }
 }
@@ -403,76 +415,4 @@ pub enum CastleRights {
     QueenSide,
     KingSide,
     Both
-}
-
-/// A structure representing a move.
-#[derive(Debug, Clone)]
-pub struct Move {
-    /// The tile the piece is moving from.
-    pub initial: Tile,
-    /// The tile the piece is moving to.
-    pub end: Tile,
-    /// Any additional metadata with the move.
-    pub metadata: MoveFlags
-}
-
-/// An enumeration of different move actions.
-#[derive(Debug, Clone)]
-pub enum MoveFlags {
-    None,
-    Castling,
-    DoublePush,
-    EnPassant,
-    KnightPromotion,
-    BishopPromotion,
-    RookPromotion,
-    QueenPromotion
-}
-
-impl Move {
-    /// Creates a new move.
-    pub fn new(initial: Tile, end: Tile, metadata: MoveFlags) -> Self {
-        Move {
-            initial,
-            end,
-            metadata
-        }
-    }
-
-    /// Creates a new move from a UCI string.
-    pub fn from_uci(uci: &str) -> Move {
-        if uci.len() != 4 && uci.len() != 5 {
-            panic!("invalid uci move");
-        }
-
-        let initial = Tile::from_code(&uci[0..2]);
-        let end = Tile::from_code(&uci[2..4]);
-
-        let metadata = match uci.len() {
-            5 => match uci.chars().nth(4).expect("Invalid UCI move metadata") {
-                'N' | 'n' => MoveFlags::KnightPromotion,
-                'B' | 'b' => MoveFlags::BishopPromotion,
-                'R' | 'r' => MoveFlags::RookPromotion,
-                'Q' | 'q' => MoveFlags::QueenPromotion,
-                _ => MoveFlags::None
-            },
-            _ => MoveFlags::None
-        };
-
-        Move::new(initial, end, metadata)
-    }
-
-    /// Converts a move to its UCI equivalent.
-    pub fn to_uci(&self) -> String {
-        let mut cur_code = format!("{}{}", self.initial.get_code(), self.end.get_code());
-        cur_code += match self.metadata {
-            MoveFlags::KnightPromotion => "n",
-            MoveFlags::BishopPromotion => "b",
-            MoveFlags::RookPromotion => "r",
-            MoveFlags::QueenPromotion => "q",
-            _ => ""
-        };
-
-        cur_code
-    }
 }

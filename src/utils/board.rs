@@ -1,9 +1,10 @@
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not};
 
+use arrayvec::ArrayVec;
 use strum::EnumCount;
 use crate::{engine::eval::{self, evaluate_board}, utils::consts::I32_NEGATIVE_INFINITY};
 
-use super::{consts::{get_bishop_mask, get_rook_mask, MagicEntry, BISHOP_MAGICS, BLACK_PAWN_MASK, KING_MASKS, KNIGHT_MASKS, MAX_LEGAL_MOVES, PIECE_MAP, ROOK_MAGICS, WHITE_PAWN_MASK}, piece::*};
+use super::{consts::{get_bishop_mask, get_rook_mask, MagicEntry, BISHOP_MAGICS, BLACK_PAWN_MASK, KING_MASKS, KNIGHT_MASKS, MAX_LEGAL_MOVES, PIECE_MAP, ROOK_MAGICS, WHITE_PAWN_MASK}, piece_move::{Move, MoveFlags}, piece::*};
 use colored::Colorize;
 
 /// A type representing an array of bitboards for tracking piece/color state.
@@ -257,16 +258,12 @@ impl Board {
     }
         
     /// Generates all legal moves for a given piece.
-    pub fn generate_moves(&self) -> Vec<Move> {
-        let mut moves = Vec::with_capacity(MAX_LEGAL_MOVES);
-
+    pub fn generate_moves(&self, moves: &mut ArrayVec<Move, MAX_LEGAL_MOVES>) {
         for square in 0..64 {
             if let Some(p) = self.board[square].clone() && p.piece_color == self.side_to_move {
                 moves.extend(p.generate_moves(self, Tile::new(square as u8 / 8, square as u8 % 8).unwrap()));
             }
         }
-
-        moves
     }
     
     /// Applies a move to the board.
@@ -321,7 +318,7 @@ impl Board {
 
         board.en_passant = None;
 
-        match piece_move.metadata {
+        match piece_move.flags {
             MoveFlags::DoublePush => {
                 let direction = if initial_piece.piece_color == PieceColor::White { -1 } else { 1 };
                 board.en_passant = Some(piece_move.end.transform(direction, 0).unwrap());
@@ -395,9 +392,10 @@ impl Board {
             return 1;
         }
 
-        let moves = self.generate_moves();
+        let mut moves = ArrayVec::new();
+        self.generate_moves(&mut moves);
+        
         let mut num_moves = 0;
-
         for piece_move in moves.iter() {
             if let Some(board) = self.make_move(piece_move) {
                 num_moves += board.perft(depth - 1);
@@ -414,13 +412,13 @@ impl Board {
             return (1, time.elapsed());
         }
 
-        let moves = self.generate_moves();
-        let mut num_positions = 0;
+        let mut moves = ArrayVec::new();
+        self.generate_moves(&mut moves);
 
+        let mut num_positions = 0;
         for piece_move in moves.iter() {
             let cur_code = piece_move.to_uci();
 
-            let mut board = self.clone();
             // let dbg = last_moves.len() == 3 && last_moves[0] == "f1f2" && last_moves[1] == "b2a1n" && last_moves[2] == "d1c2";
             // let dbg = last_moves.len() == 3 && last_moves[0] == "f1f2" && last_moves[1] == "b2a1r" && last_moves[2] == "d1a1";
             let dbg = last_moves.len() == 4 && last_moves[0] == "h1g2" && last_moves[1] == "a1b2" && last_moves[2] == "g2f1" && last_moves[3] == "b2a1";

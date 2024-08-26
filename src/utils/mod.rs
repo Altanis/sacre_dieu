@@ -1,3 +1,4 @@
 pub mod board;
 pub mod piece;
 pub mod consts;
+pub mod piece_move;

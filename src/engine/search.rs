@@ -1,6 +1,8 @@
 use std::{sync::{atomic::{AtomicBool, Ordering}, Arc}, time::{Duration, Instant}};
 
-use crate::utils::{board::Board, consts::{I32_NEGATIVE_INFINITY, I32_POSITIVE_INFINITY}, piece::Move};
+use arrayvec::ArrayVec;
+
+use crate::utils::{board::Board, consts::{I32_NEGATIVE_INFINITY, I32_POSITIVE_INFINITY}, piece_move::{order_moves, Move}};
 use super::eval;
 
 pub struct Searcher {
@@ -36,25 +38,37 @@ impl Searcher {
         self.max_depth = 0;
         while self.timer.elapsed() <= self.time_limit && !self.stop_signal.load(Ordering::Relaxed) {
             self.max_depth += 1;
-            (eval, best_move) = self.search(board, self.max_depth, I32_NEGATIVE_INFINITY, I32_POSITIVE_INFINITY);
+
+            let results = self.search(board, self.max_depth, 0, I32_NEGATIVE_INFINITY, I32_POSITIVE_INFINITY);
+            let finished = results.2;
+
+            println!("{}", finished);
+
+            if finished {
+                (eval, best_move) = (results.0, results.1);
+            } else {
+                self.max_depth -= 1;
+            }
         }
 
         (eval, best_move)
     }
 
     /// Searches for a move with the highest evaluation with a fixed depth and a hard time limit.
-    pub fn search(&mut self, board: &Board, depth: usize, mut alpha: i32, beta: i32) -> (i32, Option<Move>) {
+    pub fn search(&mut self, board: &Board, depth: usize, ply: usize, mut alpha: i32, beta: i32) -> (i32, Option<Move>, bool) {
         if depth == 0 {
-            return (eval::evaluate_board(board), None);
+            return (eval::evaluate_board(board), None, true);
         }
 
-        let moves = board.generate_moves();
+        let mut moves = ArrayVec::new();
+        board.generate_moves(&mut moves);
+        order_moves(board, self, &mut moves);
 
         if moves.is_empty() {
             if board.in_check(board.side_to_move) {
-                return (I32_NEGATIVE_INFINITY + (depth as i32), None); // Checkmate.
+                return (I32_NEGATIVE_INFINITY + (ply as i32), None, true); // Checkmate.
             } else {
-                return (0, None); // Stalemate.
+                return (0, None, true); // Stalemate.
             }
         }
 
@@ -65,7 +79,7 @@ impl Searcher {
             let Some(board) = board.make_move(piece_move) else { continue; };
             self.nodes += 1;
 
-            let (mut eval, _) = self.search(&board, depth - 1, -beta, -alpha);
+            let (mut eval, _, _) = self.search(&board, depth - 1, ply + 1, -beta, -alpha);
             eval *= -1;
 
             if eval > best_eval || best_move.is_none() {
@@ -74,7 +88,7 @@ impl Searcher {
             }
 
             if eval >= beta {
-                return (beta, best_move);
+                return (beta, best_move, true);
             }
 
             if eval > alpha {
@@ -82,10 +96,10 @@ impl Searcher {
             }
 
             if self.stop_signal.load(Ordering::Relaxed) || self.timer.elapsed() > self.time_limit {
-                return (best_eval, best_move);
+                return (best_eval, best_move, false);
             }
         }
 
-        (best_eval, best_move)
+        (best_eval, best_move, true)
     }
 }

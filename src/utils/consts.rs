@@ -27,6 +27,7 @@ pub const KNIGHT_VALUE: u32 = 300;
 pub const BISHOP_VALUE: u32 = 320;
 pub const ROOK_VALUE: u32 = 500;
 pub const QUEEN_VALUE: u32 = 900;
+pub const KING_VALUE: u32 = 20000;
 
 // Magics taken from Analog Hors.
 

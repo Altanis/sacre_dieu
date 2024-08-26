@@ -1,26 +1,14 @@
 # matrix mate
 
-todo: make square internally an idx and use a good api
-```rs
-struct Square {
-    idx: u8
-}
-
-impl Square {
-    fn from_position() {}
-    fn from_code() {}
-    fn from_index() {}
-
-    fn rank() {};
-    fn file() {};
-
-    fn get_code() {};
-
-    fn offset() {};
-}
-```
+## Releases
+`v1_basic`: negamax + a/b pruning + iterative deepening, only
+`v2_move_ordering`: v1 + mvv-lva
 
 ## Features
 - FEN Parser
 - Bitboards
 - Magic Bitboards
+- Negamax with A/B Pruning
+- Iterative Deepening
+- Move Ordering Heuristics
+    - MVV-LVA
