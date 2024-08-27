@@ -2,13 +2,13 @@ use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, N
 
 use arrayvec::ArrayVec;
 use strum::EnumCount;
-use crate::{engine::eval::{self, evaluate_board}, utils::consts::I32_NEGATIVE_INFINITY};
+use crate::{engine::eval::{self, evaluate_board}, utils::consts::WORST_EVAL};
 
-use super::{consts::{get_bishop_mask, get_rook_mask, MagicEntry, BISHOP_MAGICS, BLACK_PAWN_MASK, KING_MASKS, KNIGHT_MASKS, MAX_LEGAL_MOVES, PIECE_MAP, ROOK_MAGICS, WHITE_PAWN_MASK}, piece_move::{Move, MoveFlags}, piece::*};
+use super::{consts::{get_bishop_mask, get_rook_mask, MagicEntry, BISHOP_MAGICS, BLACK_PAWN_MASK, KING_MASKS, KNIGHT_MASKS, MAX_LEGAL_MOVES, PIECE_INDICES, PIECE_MAP, ROOK_MAGICS, WHITE_PAWN_MASK}, piece::*, piece_move::{Move, MoveFlags}, zobrist::{generate_zobrist_hash, ZOBRIST_CASTLING_KEYS, ZOBRIST_EN_PASSANT_KEYS, ZOBRIST_SIDE_TO_MOVE}};
 use colored::Colorize;
 
 /// A type representing an array of bitboards for tracking piece/color state.
-pub type PositionalBitboard = [Bitboard; PieceType::COUNT + PieceColor::COUNT];
+pub type PositionalBitboard = [Bitboard; PIECE_INDICES];
 
 /// A bitboard representing the presence of a specific state on the chess board.
 #[derive(Debug, Default, Clone, Copy, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
@@ -144,12 +144,22 @@ impl Not for Bitboard {
 /// A structure representing the state of an entire chess board.
 #[derive(Clone)]
 pub struct Board {
-    piece_bitboard: PositionalBitboard,
+    /// The bitboard of all pieces and colors.
+    pub piece_bitboard: PositionalBitboard,
+    /// A mailbox board of pieces.
     pub board: [Option<Piece>; 64],
 
+    /// The castle rights for both sides.
     pub castle_rights: [CastleRights; 2],
+    /// The side who's turn it is to move.
     pub side_to_move: PieceColor,
-    pub en_passant: Option<Tile>
+    /// The location of an en passant square.
+    pub en_passant: Option<Tile>,
+    /// The half move counter.
+    pub half_move_counter: u8,
+
+    /// A zobrist key representing the state of the board.
+    pub zobrist_key: u64
 }
 
 impl Board {
@@ -159,7 +169,9 @@ impl Board {
             castle_rights: std::array::from_fn(|_| CastleRights::default()),
             side_to_move: PieceColor::White,
             en_passant: None,
-            board: std::array::from_fn(|_| None)
+            board: std::array::from_fn(|_| None),
+            half_move_counter: 0,
+            zobrist_key: 0
         }
     }
 
@@ -200,14 +212,16 @@ impl Board {
         let (mut rank, mut file) = (7_u8, 0_u8);
 
         let tokens: Vec<&str> = fen.split(' ').collect();
-        if tokens.len() < 4 {
-            panic!("invalid fen: 4 tokens should be present")
+        if tokens.len() < 6 {
+            panic!("invalid fen: 6 tokens should be present {}", fen);
         }
 
         let pieces = tokens[0];
         let side = tokens[1];
         let castle_rights = tokens[2];
         let en_passant = tokens[3];
+        let half_move_counter = tokens[4];
+        let _ = tokens[5]; // full move counter
 
         for char in pieces.chars() {
             if let Some(advance) = char.to_digit(10) {
@@ -253,6 +267,9 @@ impl Board {
         if Tile::is_code_valid(en_passant) {
             chess_board.en_passant = Some(Tile::from_code(en_passant));
         }
+
+        chess_board.half_move_counter = half_move_counter.parse::<u8>().expect("half move counter is not a valid u8 number");
+        chess_board.zobrist_key = generate_zobrist_hash(&chess_board);
         
         chess_board
     }
@@ -267,22 +284,55 @@ impl Board {
     }
     
     /// Applies a move to the board.
-    pub fn make_move(&self, piece_move: &Move) -> Option<Board> {
+    pub fn make_move(&self, piece_move: &Move, perft: bool) -> Option<Board> {
         let mut board = self.clone();
+
+        if !perft { // Ignore zobrist hashing.
+            // Reset the Zobrist key for castling/en passant/side to move.
+            board.zobrist_key ^= ZOBRIST_CASTLING_KEYS[board.castle_rights[0] as usize + board.castle_rights[1] as usize];
         
+            if let Some(ep) = board.en_passant {
+                board.zobrist_key ^= ZOBRIST_EN_PASSANT_KEYS[ep.rank as usize + 1];
+            } else {
+                board.zobrist_key ^= ZOBRIST_EN_PASSANT_KEYS[0];
+            }
+        
+            if board.side_to_move == PieceColor::Black {
+                board.zobrist_key ^= ZOBRIST_SIDE_TO_MOVE;
+            }
+        }
+
         let initial_piece = board.board[piece_move.initial.index()].clone().expect("expected a piece on initial square");
         let end_piece = board.board[piece_move.end.index()].clone();
+
+        if !perft { // Ignore non-stalemate draws.
+            // Update the half move counter.
+            if initial_piece.piece_type == PieceType::Pawn || end_piece.is_some() {
+                board.half_move_counter = 0;
+            } else {
+                board.half_move_counter += 1;
+            }
+        }
 
         // Update the bitboards.
         if let Some(ref piece) = end_piece {
             board.piece_bitboard[piece.piece_type.to_index()].clear_bit(piece_move.end);
             board.piece_bitboard[piece.piece_color.to_index()].clear_bit(piece_move.end);
+
+            if !perft { // Ignore zobrist hashing.
+                board.zobrist_key ^= piece.zobrist_key(piece_move.end.index());
+            }
         }
 
         board.piece_bitboard[initial_piece.piece_type.to_index()].clear_bit(piece_move.initial);
         board.piece_bitboard[initial_piece.piece_color.to_index()].clear_bit(piece_move.initial);
         board.piece_bitboard[initial_piece.piece_type.to_index()].set_bit(piece_move.end);
         board.piece_bitboard[initial_piece.piece_color.to_index()].set_bit(piece_move.end);
+
+        if !perft { // Ignore zobrist hashing.
+            board.zobrist_key ^= initial_piece.zobrist_key(piece_move.initial.index());
+            board.zobrist_key ^= initial_piece.zobrist_key(piece_move.end.index());
+        }
 
         // Update the mailbox board.
         board.board[piece_move.initial.index()] = None;
@@ -331,6 +381,11 @@ impl Board {
 
                 board.piece_bitboard[piece.piece_type.to_index()].clear_bit(capture_position);
                 board.piece_bitboard[piece.piece_color.to_index()].clear_bit(capture_position);
+
+                if !perft { // Ignore zobrist hashing.
+                    board.zobrist_key ^= piece.zobrist_key(capture_position.index());
+                }
+
                 board.board[capture_position.index()] = None;
             },
             MoveFlags::Castling => {
@@ -347,10 +402,17 @@ impl Board {
                     if king_side { 5 } else { 3 }
                 ).unwrap();
 
-                board.piece_bitboard[PieceType::Rook.to_index()].clear_bit(old_rook_tile);
-                board.piece_bitboard[initial_piece.piece_color.to_index()].clear_bit(old_rook_tile);
-                board.piece_bitboard[PieceType::Rook.to_index()].set_bit(new_rook_tile);
-                board.piece_bitboard[initial_piece.piece_color.to_index()].set_bit(new_rook_tile);
+                let rook_piece = Piece::new(PieceType::Rook, initial_piece.piece_color);
+
+                board.piece_bitboard[rook_piece.piece_type.to_index()].clear_bit(old_rook_tile);
+                board.piece_bitboard[rook_piece.piece_color.to_index()].clear_bit(old_rook_tile);
+                board.piece_bitboard[rook_piece.piece_type.to_index()].set_bit(new_rook_tile);
+                board.piece_bitboard[rook_piece.piece_color.to_index()].set_bit(new_rook_tile);
+
+                if !perft { // Ignore zobrist hashing.
+                    board.zobrist_key ^= rook_piece.zobrist_key(old_rook_tile.index());
+                    board.zobrist_key ^= rook_piece.zobrist_key(new_rook_tile.index());
+                }
 
                 board.board[old_rook_tile.index()] = None;
                 board.board[new_rook_tile.index()] = Some(Piece::new(PieceType::Rook, initial_piece.piece_color));
@@ -358,22 +420,54 @@ impl Board {
             MoveFlags::KnightPromotion => {
                 board.piece_bitboard[initial_piece.piece_type.to_index()].clear_bit(piece_move.end);
                 board.piece_bitboard[PieceType::Knight.to_index()].set_bit(piece_move.end);
-                board.board[piece_move.end.index()] = Some(Piece::new(PieceType::Knight, initial_piece.piece_color));
+
+                let knight = Piece::new(PieceType::Knight, initial_piece.piece_color);
+
+                if !perft { // Ignore zobrist hashing.
+                    board.zobrist_key ^= initial_piece.zobrist_key(piece_move.end.index());
+                    board.zobrist_key ^= knight.zobrist_key(piece_move.end.index());
+                }
+
+                board.board[piece_move.end.index()] = Some(knight);
             },
             MoveFlags::BishopPromotion => {
                 board.piece_bitboard[initial_piece.piece_type.to_index()].clear_bit(piece_move.end);
                 board.piece_bitboard[PieceType::Bishop.to_index()].set_bit(piece_move.end);
-                board.board[piece_move.end.index()] = Some(Piece::new(PieceType::Bishop, initial_piece.piece_color));
+
+                let bishop = Piece::new(PieceType::Bishop, initial_piece.piece_color);
+
+                if !perft { // Ignore zobrist hashing.
+                    board.zobrist_key ^= initial_piece.zobrist_key(piece_move.end.index());
+                    board.zobrist_key ^= bishop.zobrist_key(piece_move.end.index());
+                }
+
+                board.board[piece_move.end.index()] = Some(bishop);
             },
             MoveFlags::RookPromotion => {
                 board.piece_bitboard[initial_piece.piece_type.to_index()].clear_bit(piece_move.end);
                 board.piece_bitboard[PieceType::Rook.to_index()].set_bit(piece_move.end);
-                board.board[piece_move.end.index()] = Some(Piece::new(PieceType::Rook, initial_piece.piece_color));
+
+                let rook = Piece::new(PieceType::Rook, initial_piece.piece_color);
+
+                if !perft { // Ignore zobrist hashing.
+                    board.zobrist_key ^= initial_piece.zobrist_key(piece_move.end.index());
+                    board.zobrist_key ^= rook.zobrist_key(piece_move.end.index());
+                }
+
+                board.board[piece_move.end.index()] = Some(rook);
             },
             MoveFlags::QueenPromotion => {
                 board.piece_bitboard[initial_piece.piece_type.to_index()].clear_bit(piece_move.end);
                 board.piece_bitboard[PieceType::Queen.to_index()].set_bit(piece_move.end);
-                board.board[piece_move.end.index()] = Some(Piece::new(PieceType::Queen, initial_piece.piece_color));
+
+                let queen = Piece::new(PieceType::Queen, initial_piece.piece_color);
+
+                if !perft { // Ignore zobrist hashing.
+                    board.zobrist_key ^= initial_piece.zobrist_key(piece_move.end.index());
+                    board.zobrist_key ^= queen.zobrist_key(piece_move.end.index());
+                }
+
+                board.board[piece_move.end.index()] = Some(queen);
             },
             MoveFlags::None => {}
         }
@@ -382,6 +476,21 @@ impl Board {
             None
         } else {
             board.side_to_move = !board.side_to_move;
+
+            if !perft { // Ignore zobrist hashing.
+                board.zobrist_key ^= ZOBRIST_CASTLING_KEYS[board.castle_rights[0] as usize + board.castle_rights[1] as usize];
+            
+                if let Some(ep) = board.en_passant {
+                    board.zobrist_key ^= ZOBRIST_EN_PASSANT_KEYS[ep.rank as usize + 1];
+                } else {
+                    board.zobrist_key ^= ZOBRIST_EN_PASSANT_KEYS[0];
+                }
+            
+                if board.side_to_move == PieceColor::Black {
+                    board.zobrist_key ^= ZOBRIST_SIDE_TO_MOVE;
+                }
+            }
+
             Some(board)
         }
     }
@@ -397,7 +506,7 @@ impl Board {
         
         let mut num_moves = 0;
         for piece_move in moves.iter() {
-            if let Some(board) = self.make_move(piece_move) {
+            if let Some(board) = self.make_move(piece_move, true) {
                 num_moves += board.perft(depth - 1);
             }
         }
@@ -421,17 +530,17 @@ impl Board {
 
             // let dbg = last_moves.len() == 3 && last_moves[0] == "f1f2" && last_moves[1] == "b2a1n" && last_moves[2] == "d1c2";
             // let dbg = last_moves.len() == 3 && last_moves[0] == "f1f2" && last_moves[1] == "b2a1r" && last_moves[2] == "d1a1";
-            let dbg = last_moves.len() == 4 && last_moves[0] == "h1g2" && last_moves[1] == "a1b2" && last_moves[2] == "g2f1" && last_moves[3] == "b2a1";
+            // let dbg = last_moves.len() == 4 && last_moves[0] == "h1g2" && last_moves[1] == "a1b2" && last_moves[2] == "g2f1" && last_moves[3] == "b2a1";
 
-            if let Some(board) = self.make_move(piece_move) {    
+            if let Some(board) = self.make_move(piece_move, false) {    
                 let mut moves = last_moves.clone();
                 moves.push(cur_code.clone());
     
                 let new_nodes = board.debug_perft(depth - 1, initial_depth, &mut moves).0;
     
-                if dbg {
-                    println!("{} - {}", cur_code, new_nodes);
-                }
+                // if dbg {
+                    // println!("{} - {}", cur_code, new_nodes);
+                // }
     
                 num_positions += new_nodes;
             }
@@ -488,7 +597,7 @@ impl std::fmt::Debug for Board {
 
 #[cfg(test)]
 mod tests {
-    use crate::utils::board::Board;
+    use crate::utils::{board::{Board, Tile}, piece_move::{Move, MoveFlags}};
     use colored::Colorize;
 
     const EPD_FILE: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 ;D1 20 ;D2 400 ;D3 8902 ;D4 197281 ;D5 4865609 ;D6 119060324
@@ -621,7 +730,30 @@ n1n5/PPPk4/8/8/8/8/4Kppp/5N1N b - - 0 1 ;D1 24 ;D2 496 ;D3 9483 ;D4 182838 ;D5 3
 rnbqkb1r/ppppp1pp/7n/4Pp2/8/8/PPPP1PPP/RNBQKBNR w KQkq f6 0 3 ;D5 11139762";
 
     #[test]
-    fn test() {
+    fn test_zobrist() {
+        {
+            let start_fen = "rnbqkbnr/ppp3pp/3p1p2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w kq - 0 1";
+            let end_fen = "rnbqkbnr/ppp3pp/3p1p2/4p3/2B1P3/5N2/PPPP1PPP/RNBQ1RK1 b kq - 0 1"; // startpos + castle
+
+            let mut board = Board::new(end_fen);
+            board.half_move_counter = 1;
+
+            let mut mv = Move::from_uci("e1g1");
+            mv.flags = MoveFlags::Castling;
+
+            let board2 = Board::new(start_fen).make_move(&mv, false).expect("should return valid board");
+
+            assert_eq!(board.castle_rights, board2.castle_rights);
+            assert_eq!(board.en_passant, board2.en_passant);
+            assert_eq!(board.half_move_counter, board2.half_move_counter);
+            assert_eq!(board.side_to_move, board2.side_to_move);
+
+            assert_eq!(board.zobrist_key, board2.zobrist_key);
+        }
+    }
+
+    #[test]
+    fn test_movegen() {
         let mut lines = EPD_FILE.split('\n');
         let length = lines.clone().count();
     

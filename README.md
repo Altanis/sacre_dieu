@@ -8,7 +8,16 @@
 - FEN Parser
 - Bitboards
 - Magic Bitboards
+- UCI Compliancy
 - Negamax with A/B Pruning
 - Iterative Deepening
 - Move Ordering Heuristics
     - MVV-LVA
+
+## Todo
+- Draw Detection
+    - Threefold Repetition
+    - 50-Move Rule
+- SEE Move Ordering
+- Quiescence Search
+- Piece Square Tables for Evaluation
