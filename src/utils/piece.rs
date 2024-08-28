@@ -1,32 +1,16 @@
 use std::ops::Not;
 
-use super::{board::{Bitboard, Board, PositionalBitboard}, consts::{get_bishop_mask, get_rook_mask, BISHOP_MAGICS, BISHOP_VALUE, BLACK_PAWN_MASK, KING_MASKS, KING_VALUE, KNIGHT_MASKS, KNIGHT_VALUE, MAX_LEGAL_MOVES, PAWN_VALUE, QUEEN_VALUE, ROOK_MAGICS, ROOK_VALUE, WHITE_PAWN_MASK}, piece_move::{Move, MoveFlags}, zobrist::ZOBRIST_PIECE_KEYS};
+use super::{board::{Bitboard, Board, PositionalBitboard}, consts::{get_bishop_mask, get_rook_mask, BEST_EVAL, BISHOP_MAGICS, BISHOP_VALUE, BLACK_PAWN_MASK, KING_MASKS, KING_VALUE, KNIGHT_MASKS, KNIGHT_VALUE, MAX_LEGAL_MOVES, PAWN_VALUE, QUEEN_VALUE, ROOK_MAGICS, ROOK_VALUE, WHITE_PAWN_MASK}, piece_move::{Move, MoveFlags}, zobrist::ZOBRIST_PIECE_KEYS};
 
 /// An enum representing the type of chess piece.
 #[derive(Debug, Clone, PartialEq, strum_macros::EnumCount, strum_macros::EnumIter)]
 pub enum PieceType {
-    Pawn     = 0b1,
-    Knight   = 0b10,
-    Bishop   = 0b100,
-    Rook     = 0b1000,
-    Queen    = 0b10000,
-    King     = 0b100000
-}
-
-impl TryFrom<u32> for PieceType {
-    type Error = &'static str;
-
-    fn try_from(value: u32) -> Result<Self, Self::Error> {
-        match value {
-            0b1 => Ok(PieceType::Pawn),
-            0b10 => Ok(PieceType::Knight),
-            0b100 => Ok(PieceType::Bishop),
-            0b1000 => Ok(PieceType::Rook),
-            0b10000 => Ok(PieceType::Queen),
-            0b100000 => Ok(PieceType::King),
-            _ => Err("Invalid piece type")
-        }
-    }
+    Pawn,
+    Knight,
+    Bishop,
+    Rook,
+    Queen,
+    King
 }
 
 impl PieceType {
@@ -59,20 +43,8 @@ impl PieceType {
 #[derive(Debug, Default, Clone, Copy, PartialEq, strum_macros::EnumCount)]
 pub enum PieceColor {
     #[default]
-    White  = 0b1,
-    Black  = 0b10
-}
-
-impl TryFrom<u32> for PieceColor {
-    type Error = &'static str;
-
-    fn try_from(value: u32) -> Result<Self, Self::Error> {
-        match value {
-            0b1 => Ok(PieceColor::White),
-            0b10 => Ok(PieceColor::Black),
-            _ => Err("Invalid piece color")
-        }
-    }
+    White,
+    Black
 }
 
 impl Not for PieceColor {
@@ -158,10 +130,10 @@ impl Tile {
     /// Whether or not a code is valid.
     pub fn is_code_valid(code: &str) -> bool {
         code.len() == 2 && code.chars().nth(1).and_then(|c| c.to_digit(10)).is_some()
-    }    
+    }
 
-    /// Whether or not the position is under attack from a specific side.
-    pub fn is_under_attack(&self, board: &Board, enemy_side: PieceColor) -> bool {
+    /// The attackers for the tile of a specific color.
+    pub fn attackers(&self, board: &Board, enemy_side: PieceColor) -> Bitboard {
         let enemy_pawns = board.colored_piece(PieceType::Pawn, enemy_side);
         let enemy_knights = board.colored_piece(PieceType::Knight, enemy_side);
         let enemy_bishops = board.colored_piece(PieceType::Bishop, enemy_side) | board.colored_piece(PieceType::Queen, enemy_side);
@@ -177,7 +149,12 @@ impl Tile {
         let rook_attacks = get_rook_mask(Board::generate_magic_index(&ROOK_MAGICS[self.index()], &board.occupied())) & enemy_rooks;
         let king_attacks = Bitboard::new(KING_MASKS[self.index()]) & enemy_kings;
 
-        (pawn_attacks | knight_attacks | bishop_attacks | rook_attacks | king_attacks) != Bitboard::new(0)
+        pawn_attacks | knight_attacks | bishop_attacks | rook_attacks | king_attacks
+    }
+
+    /// Whether or not the position is under attack from a specific side.
+    pub fn is_under_attack(&self, board: &Board, enemy_side: PieceColor) -> bool {
+        self.attackers(board, enemy_side) != Bitboard::ZERO()
     }
 }
 

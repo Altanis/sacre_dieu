@@ -75,7 +75,7 @@ impl Searcher {
 
         let mut moves = ArrayVec::new();
         board.generate_moves(&mut moves);
-        // order_moves(board, self, &mut moves);
+        order_moves(board, self, &mut moves);
 
         let mut best_move = None;
         let mut best_eval = WORST_EVAL;

@@ -1,10 +1,10 @@
-use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not};
+use std::{ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not}, thread::current};
 
 use arrayvec::ArrayVec;
 use strum::EnumCount;
 use crate::{engine::eval::{self, evaluate_board}, utils::consts::WORST_EVAL};
 
-use super::{consts::{get_bishop_mask, get_rook_mask, MagicEntry, BISHOP_MAGICS, BLACK_PAWN_MASK, KING_MASKS, KNIGHT_MASKS, MAX_LEGAL_MOVES, PIECE_INDICES, PIECE_MAP, ROOK_MAGICS, WHITE_PAWN_MASK}, piece::*, piece_move::{Move, MoveFlags}, zobrist::{generate_zobrist_hash, ZOBRIST_CASTLING_KEYS, ZOBRIST_EN_PASSANT_KEYS, ZOBRIST_SIDE_TO_MOVE}};
+use super::{consts::{get_bishop_mask, get_rook_mask, MagicEntry, BISHOP_MAGICS, BLACK_PAWN_MASK, KING_MASKS, KNIGHT_MASKS, MAX_LEGAL_MOVES, PAWN_VALUE, PIECE_INDICES, PIECE_MAP, ROOK_MAGICS, WHITE_PAWN_MASK}, piece::*, piece_move::{Move, MoveFlags}, zobrist::{generate_zobrist_hash, ZOBRIST_CASTLING_KEYS, ZOBRIST_EN_PASSANT_KEYS, ZOBRIST_SIDE_TO_MOVE}};
 use colored::Colorize;
 
 /// A type representing an array of bitboards for tracking piece/color state.
@@ -25,7 +25,7 @@ impl Bitboard {
     }
 
     /// Instantiates a constant ZERO bitboard.
-    pub const fn const_zero() -> Self {
+    pub const fn ZERO() -> Self {
         Bitboard { board: 0 }
     }
 
@@ -201,6 +201,21 @@ impl Board {
         let tile = king_bitboard.pop_lsb();
 
         tile.is_under_attack(self, !color)
+    }
+
+    /// Gets an "endgame" weight for the position in range of [0, 1], where 0 represents opening and 1 represents endgame.
+    pub fn endgame_weight(&self, side: PieceColor) -> u32 {
+        let knight_bitbard = self.colored_piece(PieceType::Knight, side);
+        let bishop_bitboard = self.colored_piece(PieceType::Bishop, side);
+        let rook_bitboard = self.colored_piece(PieceType::Rook, side);
+        let queen_bitboard = self.colored_piece(PieceType::Queen, side);
+    
+        let knight_score = knight_bitbard.board.count_ones() * 100;
+        let bishop_score = bishop_bitboard.board.count_ones() * 100;
+        let rook_score = rook_bitboard.board.count_ones() * 200;
+        let queen_score = queen_bitboard.board.count_ones() * 400;
+    
+        (knight_score + bishop_score + rook_score + queen_score) / 24
     }
 
     /// Initialises a chess board given a FEN string.

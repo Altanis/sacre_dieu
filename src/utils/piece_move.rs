@@ -2,7 +2,7 @@ use arrayvec::ArrayVec;
 
 use crate::engine::search::Searcher;
 
-use super::{board::Board, consts::MAX_LEGAL_MOVES, piece::Tile};
+use super::{board::{Bitboard, Board}, consts::{BLACK_PAWN_MASK, MAX_LEGAL_MOVES, PIECE_SQUARE_TABLE, WHITE_PAWN_MASK}, piece::{PieceColor, PieceType, Tile}};
 
 /// A structure representing a move.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -83,13 +83,13 @@ impl Move {
     }
 
     /// Gets the value of the piece the move is promoting to.
-    pub fn get_promotion_value(&self) -> i32 {
+    pub fn get_promotion_type(&self) -> PieceType {
         match self.flags {
-            MoveFlags::KnightPromotion => 3,
-            MoveFlags::BishopPromotion => 3,
-            MoveFlags::RookPromotion => 5,
-            MoveFlags::QueenPromotion => 9,
-            _ => 0
+            MoveFlags::KnightPromotion => PieceType::Knight,
+            MoveFlags::BishopPromotion => PieceType::Bishop,
+            MoveFlags::RookPromotion => PieceType::Rook,
+            MoveFlags::QueenPromotion => PieceType::Queen,
+            _ => panic!("invalid flag")
         }
     }
 }
@@ -101,21 +101,26 @@ pub fn order_moves(board: &Board, searcher: &Searcher, moves: &mut ArrayVec<Move
     for piece_move in moves.iter() {
         let mut score: i32 = 0;
 
-        let initial_type = board.board[piece_move.initial.index()]
-            .as_ref()
-            .expect("expected piece on initial square")
-            .piece_type.clone();
+        let initial_piece = board.board[piece_move.initial.index()]
+            .clone()
+            .expect("expected piece on initial square");
 
         // MVV-LVA
         if let Some(piece) = board.board[piece_move.end.index()].as_ref() {
-            score = 100 * piece.piece_type.get_value() as i32 - initial_type.get_value() as i32;
+            score = 100 * piece.piece_type.get_value() as i32 - initial_piece.piece_type.get_value() as i32;
         }
 
-        score += piece_move.get_promotion_value(); // Returns 0 if theres no promotion available.
+        // A super naive SEE: I will revisit this later.
+        // Penalizes movement onto a tile controlled by a pawn.
+        let enemy_pawns = board.colored_piece(PieceType::Pawn, !board.side_to_move);
+        let pawn_attacks = Bitboard::new(match !board.side_to_move {
+            PieceColor::White => BLACK_PAWN_MASK[piece_move.end.index()].1,
+            PieceColor::Black => WHITE_PAWN_MASK[piece_move.end.index()].1,
+        }) & enemy_pawns;
 
-        // SSE after SPRT test.
-
-        scores.push(score);
+        if pawn_attacks != Bitboard::ZERO() {
+            score -= initial_piece.piece_type.get_value() as i32;
+        }
     }
 
     let mut combined: ArrayVec<(_, _), MAX_LEGAL_MOVES> = scores.iter().copied().zip(moves.iter().copied()).collect();
