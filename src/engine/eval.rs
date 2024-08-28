@@ -5,17 +5,23 @@ use crate::utils::{board::{Bitboard, Board}, consts::{self, PIECE_SQUARE_TABLE},
 /// Evaluates the board, where negative values represent a black advantage and positive
 /// values represent a white advantage.
 pub fn evaluate_board(board: &Board) -> i32 {
-    let mut eval = 0;
-    let perspective = if board.side_to_move == PieceColor::White { 1 } else { -1 };
+    let (mut mg, mut eg) = (0_i32, 0_i32);
     
     let material_eval = count_material(board, PieceColor::White) as i32 - count_material(board, PieceColor::Black) as i32;
-    eval += material_eval * perspective;
+    mg += material_eval;
+    eg += material_eval;
 
-    let (white_endgame_weight, black_endgame_weight) = (board.endgame_weight(PieceColor::White), board.endgame_weight(PieceColor::Black));
-    let piece_square_eval = evaluate_piece_square_score(board, PieceColor::White, black_endgame_weight) as i32 - evaluate_piece_square_score(board, PieceColor::Black, white_endgame_weight) as i32;
-    eval += piece_square_eval * perspective;
+    // let (psqt_white_mg, psqt_white_eg) = evaluate_piece_square_score(board, PieceColor::White);
+    // let (psqt_black_mg, psqt_black_eg) = evaluate_piece_square_score(board, PieceColor::Black);
 
-    eval
+    // mg += psqt_white_mg - psqt_black_mg;
+    // eg += psqt_white_eg - psqt_black_eg;
+
+    let phase = board.phase() as i32;
+    let eval = (mg * phase + eg * (24 - phase)) / 24;
+    let perspective = if board.side_to_move == PieceColor::White { 1 } else { -1 };
+
+    eval * perspective
 }
 
 /// Counts the material for a side of the board.
@@ -36,23 +42,24 @@ pub fn count_material(board: &Board, side: PieceColor) -> u32 {
 }
 
 /// Evaluates a piece square score for a certain side.
-pub fn evaluate_piece_square_score(board: &Board, side: PieceColor, endgame_weight: u32) -> u32 {
+pub fn evaluate_piece_square_score(board: &Board, side: PieceColor) -> (i32, i32) {
     // todo "track a total midgame and total endgame score and interpolate at the end"
 
-    let mut value = 0;
+    let mut mg = 0_i32;
+    let mut eg = 0_i32;
 
     for piece_type in PieceType::iter() {
-        let index = (if side == PieceColor::Black { 6 } else { 0 }) + piece_type.clone() as usize;
+        let index = piece_type.clone() as usize;
         let mut piece_bitboard = board.colored_piece(piece_type, side);
 
         while piece_bitboard != Bitboard::ZERO() {
             let tile = piece_bitboard.pop_lsb();
 
-            let (opening_eval, endgame_eval) = PIECE_SQUARE_TABLE[index][tile.index()];
-            let nuance = opening_eval as f32 + (endgame_eval as f32 - opening_eval as f32) * (endgame_weight as f32 / 100.0);
-            value += nuance as u32;
+            let (opening_eval, endgame_eval) = PIECE_SQUARE_TABLE[index][tile.index() ^ 56];
+            mg += opening_eval as i32;
+            eg += endgame_eval as i32;
         }
     }
 
-    value
+    (mg, eg)
 }

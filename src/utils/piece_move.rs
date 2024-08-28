@@ -112,15 +112,15 @@ pub fn order_moves(board: &Board, searcher: &Searcher, moves: &mut ArrayVec<Move
 
         // A super naive SEE: I will revisit this later.
         // Penalizes movement onto a tile controlled by a pawn.
-        let enemy_pawns = board.colored_piece(PieceType::Pawn, !board.side_to_move);
-        let pawn_attacks = Bitboard::new(match !board.side_to_move {
-            PieceColor::White => BLACK_PAWN_MASK[piece_move.end.index()].1,
-            PieceColor::Black => WHITE_PAWN_MASK[piece_move.end.index()].1,
-        }) & enemy_pawns;
+        // let enemy_pawns = board.colored_piece(PieceType::Pawn, !board.side_to_move);
+        // let pawn_attacks = Bitboard::new(match !board.side_to_move {
+        //     PieceColor::White => BLACK_PAWN_MASK[piece_move.end.index()].1,
+        //     PieceColor::Black => WHITE_PAWN_MASK[piece_move.end.index()].1,
+        // }) & enemy_pawns;
 
-        if pawn_attacks != Bitboard::ZERO() {
-            score -= initial_piece.piece_type.get_value() as i32;
-        }
+        // if pawn_attacks != Bitboard::ZERO() {
+        //     score -= initial_piece.piece_type.get_value() as i32;
+        // }
     }
 
     let mut combined: ArrayVec<(_, _), MAX_LEGAL_MOVES> = scores.iter().copied().zip(moves.iter().copied()).collect();

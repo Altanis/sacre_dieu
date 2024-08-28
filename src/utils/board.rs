@@ -203,19 +203,18 @@ impl Board {
         tile.is_under_attack(self, !color)
     }
 
-    /// Gets an "endgame" weight for the position in range of [0, 1], where 0 represents opening and 1 represents endgame.
-    pub fn endgame_weight(&self, side: PieceColor) -> u32 {
-        let knight_bitbard = self.colored_piece(PieceType::Knight, side);
-        let bishop_bitboard = self.colored_piece(PieceType::Bishop, side);
-        let rook_bitboard = self.colored_piece(PieceType::Rook, side);
-        let queen_bitboard = self.colored_piece(PieceType::Queen, side);
+    pub fn phase(&self) -> u32 {
+        let knight_bitboard = self.piece(PieceType::Knight);
+        let bishop_bitboard = self.piece(PieceType::Bishop);
+        let rook_bitboard = self.piece(PieceType::Rook);
+        let queen_bitboard = self.piece(PieceType::Queen);
+
+        let knight_score = knight_bitboard.board.count_ones() * 1;
+        let bishop_score = bishop_bitboard.board.count_ones() * 1;
+        let rook_score = rook_bitboard.board.count_ones() * 2;
+        let queen_score = queen_bitboard.board.count_ones() * 4;
     
-        let knight_score = knight_bitbard.board.count_ones() * 100;
-        let bishop_score = bishop_bitboard.board.count_ones() * 100;
-        let rook_score = rook_bitboard.board.count_ones() * 200;
-        let queen_score = queen_bitboard.board.count_ones() * 400;
-    
-        (knight_score + bishop_score + rook_score + queen_score) / 24
+        knight_score + bishop_score + rook_score + queen_score
     }
 
     /// Initialises a chess board given a FEN string.

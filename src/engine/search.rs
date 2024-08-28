@@ -90,19 +90,6 @@ impl Searcher {
             valid_moves += 1;
             last_valid_move = Some(*piece_move);
 
-            // let mut transpositions = 0;
-            // for position in self.past_boards.iter() { // NOTE: The vector is cleared every time the half-move counter resets.
-            //     if board.zobrist_key == *position {
-            //         transpositions += 1;
-
-            //         if transpositions >= 2 {
-            //             break;
-            //         }
-            //     }
-            // }
-
-            // if transpositions >= 2 {continue;}
-
             if self.past_boards.iter().filter(|p| **p == board.zobrist_key).count() == 2 {
                 continue;
             }
@@ -140,7 +127,7 @@ impl Searcher {
             }
         }
 
-        if best_move.is_none() && self.max_depth == depth {
+        if best_move.is_none() && ply == 0 {
             best_move = last_valid_move;
 
             if best_move.is_none() {
@@ -150,4 +137,6 @@ impl Searcher {
 
         (best_eval, best_move, true)
     }
+
+    // pub fn quiescence_search(&mut self, board: &Board, mut alpha: i32, beta: i32) -> 
 }
