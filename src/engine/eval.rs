@@ -11,11 +11,11 @@ pub fn evaluate_board(board: &Board) -> i32 {
     mg += material_eval;
     eg += material_eval;
 
-    // let (psqt_white_mg, psqt_white_eg) = evaluate_piece_square_score(board, PieceColor::White);
-    // let (psqt_black_mg, psqt_black_eg) = evaluate_piece_square_score(board, PieceColor::Black);
+    let (psqt_white_mg, psqt_white_eg) = evaluate_piece_square_score(board, PieceColor::White);
+    let (psqt_black_mg, psqt_black_eg) = evaluate_piece_square_score(board, PieceColor::Black);
 
-    // mg += psqt_white_mg - psqt_black_mg;
-    // eg += psqt_white_eg - psqt_black_eg;
+    mg += psqt_white_mg - psqt_black_mg;
+    eg += psqt_white_eg - psqt_black_eg;
 
     let phase = board.phase() as i32;
     let eval = (mg * phase + eg * (24 - phase)) / 24;
