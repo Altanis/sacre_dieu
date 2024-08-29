@@ -50,10 +50,11 @@ impl Searcher {
                 break;
             }
 
-            self.max_depth += 1;
+            self.nodes = 0;
             self.finished = true;
+            self.max_depth += 1;
 
-            let latest_eval = -self.search(board, self.max_depth, 0, WORST_EVAL, BEST_EVAL);
+            let latest_eval = self.search(board, self.max_depth, 0, WORST_EVAL, BEST_EVAL);
 
             if self.finished {
                 eval = latest_eval;
@@ -75,7 +76,8 @@ impl Searcher {
         }
         
         if depth == 0 {
-            return self.quiescence_search(board, alpha, beta);
+            return self.quiescence_search(board, alpha, beta); // <-- causes null move syndrome
+            // return eval::evaluate_board(board);
         }
 
         let mut moves = ArrayVec::new();
@@ -89,7 +91,7 @@ impl Searcher {
             self.nodes += 1;
             has_moves = true;
 
-            if self.past_boards.iter().filter(|p| **p == board.zobrist_key).count() == 2 {
+            if ply != 0 && self.past_boards.iter().filter(|p| **p == board.zobrist_key).count() == 2 {
                 return 0;
             }
 
@@ -109,7 +111,7 @@ impl Searcher {
 
             if self.stop_signal.load(Ordering::Relaxed) || self.timer.elapsed() > self.time_limit {
                 self.finished = false;
-                break;
+                return alpha;
             }
         }
 
@@ -129,6 +131,7 @@ impl Searcher {
         if eval >= beta {
             return beta;
         }
+
         alpha = alpha.max(eval);
 
         let mut moves = ArrayVec::new();
@@ -137,8 +140,9 @@ impl Searcher {
 
         for piece_move in moves.iter() {
             let Some(board) = board.make_move(piece_move, false) else { continue; };
-            let evaluation = -self.quiescence_search(&board, -beta, -alpha);
+            self.nodes += 1;
 
+            let evaluation = -self.quiescence_search(&board, -beta, -alpha);
             if evaluation >= beta {
                 return beta;
             }

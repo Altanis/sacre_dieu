@@ -180,21 +180,21 @@ impl Piece {
     }
 
     /// Generates a list of moves for the piece.
-    pub fn generate_moves(&self, board: &Board, tile_start: Tile, captures_only: bool) -> Vec<Move> {
+    pub fn generate_moves(&self, board: &Board, tile_start: Tile, qsearch: bool) -> Vec<Move> {
         match self.piece_type {
-            PieceType::Pawn => Piece::generate_pawn_moves(board, tile_start, self.piece_color, captures_only),
-            PieceType::Knight => Piece::generate_knight_moves(board, tile_start, self.piece_color, captures_only),
-            PieceType::Bishop => Piece::generate_bishop_moves(board, tile_start, self.piece_color, captures_only),
-            PieceType::Rook => Piece::generate_rook_moves(board, tile_start, self.piece_color, captures_only),
-            PieceType::Queen => Piece::generate_bishop_moves(board, tile_start, self.piece_color, captures_only)
+            PieceType::Pawn => Piece::generate_pawn_moves(board, tile_start, self.piece_color, qsearch),
+            PieceType::Knight => Piece::generate_knight_moves(board, tile_start, self.piece_color, qsearch),
+            PieceType::Bishop => Piece::generate_bishop_moves(board, tile_start, self.piece_color, qsearch),
+            PieceType::Rook => Piece::generate_rook_moves(board, tile_start, self.piece_color, qsearch),
+            PieceType::Queen => Piece::generate_bishop_moves(board, tile_start, self.piece_color, qsearch)
                 .into_iter()
-                .chain(Piece::generate_rook_moves(board, tile_start, self.piece_color, captures_only))
+                .chain(Piece::generate_rook_moves(board, tile_start, self.piece_color, qsearch))
                 .collect(),
-            PieceType::King => Piece::generate_king_moves(board, tile_start, self.piece_color, captures_only)
+            PieceType::King => Piece::generate_king_moves(board, tile_start, self.piece_color, qsearch)
         }
     }
 
-    fn generate_pawn_moves(board: &Board, tile_start: Tile, piece_color: PieceColor, captures_only: bool) -> Vec<Move> {
+    fn generate_pawn_moves(board: &Board, tile_start: Tile, piece_color: PieceColor, qsearch: bool) -> Vec<Move> {
         let mut moves = Vec::with_capacity(MAX_LEGAL_MOVES);
 
         let direction = if piece_color == PieceColor::White { 1 } else { -1 };
@@ -248,18 +248,16 @@ impl Piece {
         while mask.board != 0 {
             let tile_end = mask.pop_lsb();
 
-            if captures_only && board.board[tile_end.index()].is_none() {
+            if Some(tile_end) == en_passant {
+                moves.push(Move::new(tile_start, tile_end, MoveFlags::EnPassant));
                 continue;
             }
 
-            if Some(tile_end) == en_passant {
-                moves.push(Move::new(tile_start, tile_end, MoveFlags::EnPassant));
-            } else if tile_end.rank == (if piece_color == PieceColor::White { 7 } else { 0 }) {
-                moves.push(Move::new(tile_start, tile_end, MoveFlags::KnightPromotion));
-                moves.push(Move::new(tile_start, tile_end, MoveFlags::BishopPromotion));
-                moves.push(Move::new(tile_start, tile_end, MoveFlags::RookPromotion));
-                moves.push(Move::new(tile_start, tile_end, MoveFlags::QueenPromotion));
-            } else if Some(tile_end) == double_push_tile {
+            if qsearch && board.board[tile_end.index()].is_none() {
+                continue;
+            }
+
+            if Some(tile_end) == double_push_tile {
                 moves.push(Move::new(tile_start, tile_end, MoveFlags::DoublePush));
             } else {
                 moves.push(Move::new(tile_start, tile_end, MoveFlags::None));
@@ -269,7 +267,7 @@ impl Piece {
         moves
     }
 
-    fn generate_knight_moves(board: &Board, tile_start: Tile, piece_color: PieceColor, captures_only: bool) -> Vec<Move> {
+    fn generate_knight_moves(board: &Board, tile_start: Tile, piece_color: PieceColor, qsearch: bool) -> Vec<Move> {
         let mut moves = Vec::with_capacity(MAX_LEGAL_MOVES);
         
         let mut mask = Bitboard::new(KNIGHT_MASKS[tile_start.index()]);
@@ -278,7 +276,7 @@ impl Piece {
         let mut mask_clone = mask;
         while mask_clone.board != 0 {
             let tile_end = mask_clone.pop_lsb();
-            if captures_only && board.board[tile_end.index()].is_none() {
+            if qsearch && board.board[tile_end.index()].is_none() {
                 continue;
             }
 
@@ -288,7 +286,7 @@ impl Piece {
         moves
     }
 
-    fn generate_rook_moves(board: &Board, tile_start: Tile, piece_color: PieceColor, captures_only: bool) -> Vec<Move> {
+    fn generate_rook_moves(board: &Board, tile_start: Tile, piece_color: PieceColor, qsearch: bool) -> Vec<Move> {
         let mut moves = Vec::with_capacity(MAX_LEGAL_MOVES);
 
         // Retreive the mask through the magic indexing system.
@@ -300,7 +298,7 @@ impl Piece {
         let mut mask_clone = mask;
         while mask_clone.board != 0 {
             let tile_end = mask_clone.pop_lsb();
-            if captures_only && board.board[tile_end.index()].is_none() {
+            if qsearch && board.board[tile_end.index()].is_none() {
                 continue;
             }
 
@@ -310,7 +308,7 @@ impl Piece {
         moves
     }
 
-    fn generate_bishop_moves(board: &Board, tile_start: Tile, piece_color: PieceColor, captures_only: bool) -> Vec<Move> {
+    fn generate_bishop_moves(board: &Board, tile_start: Tile, piece_color: PieceColor, qsearch: bool) -> Vec<Move> {
         let mut moves = Vec::with_capacity(MAX_LEGAL_MOVES);
 
         // Retreive the mask through the magic indexing system.
@@ -322,7 +320,7 @@ impl Piece {
         let mut mask_clone = mask;
         while mask_clone.board != 0 {
             let tile_end = mask_clone.pop_lsb();
-            if captures_only && board.board[tile_end.index()].is_none() {
+            if qsearch && board.board[tile_end.index()].is_none() {
                 continue;
             }
 
@@ -332,7 +330,7 @@ impl Piece {
         moves
     }
 
-    fn generate_king_moves(board: &Board, tile_start: Tile, piece_color: PieceColor, captures_only: bool) -> Vec<Move> {
+    fn generate_king_moves(board: &Board, tile_start: Tile, piece_color: PieceColor, qsearch: bool) -> Vec<Move> {
         let mut moves = Vec::with_capacity(MAX_LEGAL_MOVES);
         
         let mut mask = Bitboard::new(KING_MASKS[tile_start.index()]);
@@ -350,7 +348,7 @@ impl Piece {
                     || first_tile.is_under_attack(board, !piece_color) || occupied.get_bit(first_tile)
                     || second_tile.is_under_attack(board, !piece_color) || occupied.get_bit(second_tile));
     
-                    if can_castle && !captures_only {
+                    if can_castle && !qsearch {
                         moves.push(Move::new(tile_start, second_tile, MoveFlags::Castling));
                     }
                 }
@@ -366,7 +364,7 @@ impl Piece {
                     || second_tile.is_under_attack(board, !piece_color) || occupied.get_bit(second_tile)
                     || occupied.get_bit(third_tile));
     
-                    if can_castle && !captures_only {
+                    if can_castle && !qsearch {
                         moves.push(Move::new(tile_start, second_tile, MoveFlags::Castling));
                     }
                 }
@@ -381,7 +379,7 @@ impl Piece {
                         || first_tile.is_under_attack(board, !piece_color) || occupied.get_bit(first_tile)
                         || second_tile.is_under_attack(board, !piece_color) || occupied.get_bit(second_tile));
         
-                        if can_castle && !captures_only {
+                        if can_castle && !qsearch {
                             moves.push(Move::new(tile_start, second_tile, MoveFlags::Castling));
                         }
                     }
@@ -398,7 +396,7 @@ impl Piece {
                         || second_tile.is_under_attack(board, !piece_color) || occupied.get_bit(second_tile)
                         || occupied.get_bit(third_tile));
         
-                        if can_castle && !captures_only {
+                        if can_castle && !qsearch {
                             moves.push(Move::new(tile_start, second_tile, MoveFlags::Castling));
                         }
                     }
@@ -410,7 +408,7 @@ impl Piece {
         let mut mask_clone = mask;
         while mask_clone.board != 0 {
             let tile_end = mask_clone.pop_lsb();
-            if captures_only && board.board[tile_end.index()].is_none() {
+            if qsearch && board.board[tile_end.index()].is_none() {
                 continue;
             }
 

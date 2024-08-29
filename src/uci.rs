@@ -5,6 +5,7 @@ use crate::{engine::search::{self, Searcher}, utils::{board::Board, consts::{BES
 pub enum UCICommands {
     SetPosition(String),
     ForceMove(String),
+    NewGame,
     StartSearch(i64, i64, u64, u64), // todo move stop_signal to handle_search function
     PrintBoard
 }
@@ -16,7 +17,10 @@ pub fn handle_command(command: &str, sender: Sender<UCICommands>, stop_signal: A
     match command {
         "uci" => reply("uciok"),
         "isready" => reply("readyok"),
-        "ucinewgame" => stop_signal.store(true, Ordering::Relaxed),
+        "ucinewgame" => {
+            sender.send(UCICommands::NewGame).expect("couldnt send ucinewgame");
+            stop_signal.store(true, Ordering::Relaxed);
+        },
         "stop" => stop_signal.store(true, Ordering::Relaxed),
         "position" => {
             let tokens: Vec<&str> = args.collect();
@@ -101,6 +105,10 @@ pub fn handle_board(receiver: Receiver<UCICommands>, stop_signal: Arc<AtomicBool
 
     while let Ok(message) = receiver.recv() {
         match message {
+            UCICommands::NewGame => {
+                // todo reset TT table
+                searcher.past_boards.clear();
+            },
             UCICommands::SetPosition(pos) => board = Board::new(pos.as_str()),
             UCICommands::ForceMove(moves) => {
                 for uci_move in moves.split(' ') {

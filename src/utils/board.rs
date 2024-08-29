@@ -287,13 +287,13 @@ impl Board {
     }
         
     /// Generates all legal moves for a given piece.
-    pub fn generate_moves(&self, moves: &mut ArrayVec<Move, MAX_LEGAL_MOVES>, captures_only: bool) {
+    pub fn generate_moves(&self, moves: &mut ArrayVec<Move, MAX_LEGAL_MOVES>, qsearch: bool) {
         let mut occupied = self.color(self.side_to_move);
         while occupied != Bitboard::ZERO {
             let tile = occupied.pop_lsb();
             let piece = self.board[tile.index()].as_ref().expect("expected piece on tile in generate_moves");
 
-            moves.extend(piece.generate_moves(self, tile, captures_only));
+            moves.extend(piece.generate_moves(self, tile, qsearch));
         }
 
         // for square in 0..64 {
@@ -542,7 +542,20 @@ impl Board {
         }
 
         let mut moves = ArrayVec::new();
+        let mut qsearch_moves = ArrayVec::new();
         self.generate_moves(&mut moves, false);
+        self.generate_moves(&mut qsearch_moves, true);
+
+        let vec: Vec<&Move> = moves.iter().filter(|x| self.board[x.end.index()].is_some() || x.flags == MoveFlags::EnPassant).collect();
+        let qsearch_vec: Vec<&Move> = qsearch_moves.iter().collect();
+
+        assert_eq!(vec, qsearch_vec);
+
+        // for i in 0..vec.len() {
+        //     if vec[i] != qsearch_vec[i] {
+        //         panic!("{:?} {:?}", vec[i], qsearch_vec[i]);
+        //     }
+        // }
 
         let mut num_positions = 0;
         for piece_move in moves.iter() {
