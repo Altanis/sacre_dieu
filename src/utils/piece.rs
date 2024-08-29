@@ -154,7 +154,7 @@ impl Tile {
 
     /// Whether or not the position is under attack from a specific side.
     pub fn is_under_attack(&self, board: &Board, enemy_side: PieceColor) -> bool {
-        self.attackers(board, enemy_side) != Bitboard::ZERO()
+        self.attackers(board, enemy_side) != Bitboard::ZERO
     }
 }
 
@@ -180,18 +180,21 @@ impl Piece {
     }
 
     /// Generates a list of moves for the piece.
-    pub fn generate_moves(&self, board: &Board, tile_start: Tile) -> Vec<Move> {
+    pub fn generate_moves(&self, board: &Board, tile_start: Tile, captures_only: bool) -> Vec<Move> {
         match self.piece_type {
-            PieceType::Pawn => Piece::generate_pawn_moves(board, tile_start, self.piece_color),
-            PieceType::Knight => Piece::generate_knight_moves(board, tile_start, self.piece_color),
-            PieceType::Bishop => Piece::generate_bishop_moves(board, tile_start, self.piece_color),
-            PieceType::Rook => Piece::generate_rook_moves(board, tile_start, self.piece_color),
-            PieceType::Queen => Piece::generate_bishop_moves(board, tile_start, self.piece_color).into_iter().chain(Piece::generate_rook_moves(board, tile_start, self.piece_color)).collect(),
-            PieceType::King => Piece::generate_king_moves(board, tile_start, self.piece_color)
+            PieceType::Pawn => Piece::generate_pawn_moves(board, tile_start, self.piece_color, captures_only),
+            PieceType::Knight => Piece::generate_knight_moves(board, tile_start, self.piece_color, captures_only),
+            PieceType::Bishop => Piece::generate_bishop_moves(board, tile_start, self.piece_color, captures_only),
+            PieceType::Rook => Piece::generate_rook_moves(board, tile_start, self.piece_color, captures_only),
+            PieceType::Queen => Piece::generate_bishop_moves(board, tile_start, self.piece_color, captures_only)
+                .into_iter()
+                .chain(Piece::generate_rook_moves(board, tile_start, self.piece_color, captures_only))
+                .collect(),
+            PieceType::King => Piece::generate_king_moves(board, tile_start, self.piece_color, captures_only)
         }
     }
 
-    fn generate_pawn_moves(board: &Board, tile_start: Tile, piece_color: PieceColor) -> Vec<Move> {
+    fn generate_pawn_moves(board: &Board, tile_start: Tile, piece_color: PieceColor, captures_only: bool) -> Vec<Move> {
         let mut moves = Vec::with_capacity(MAX_LEGAL_MOVES);
 
         let direction = if piece_color == PieceColor::White { 1 } else { -1 };
@@ -201,7 +204,6 @@ impl Piece {
             PieceColor::White => (Bitboard::new(WHITE_PAWN_MASK[tile_start.index()].0), Bitboard::new(WHITE_PAWN_MASK[tile_start.index()].1)),
             PieceColor::Black => (Bitboard::new(BLACK_PAWN_MASK[tile_start.index()].0), Bitboard::new(BLACK_PAWN_MASK[tile_start.index()].1))
         };
-
 
         let single_push_tile = tile_start.transform(1 * direction, 0);
         let double_push_tile = tile_start.transform(2 * direction, 0);
@@ -246,6 +248,10 @@ impl Piece {
         while mask.board != 0 {
             let tile_end = mask.pop_lsb();
 
+            if captures_only && board.board[tile_end.index()].is_none() {
+                continue;
+            }
+
             if Some(tile_end) == en_passant {
                 moves.push(Move::new(tile_start, tile_end, MoveFlags::EnPassant));
             } else if tile_end.rank == (if piece_color == PieceColor::White { 7 } else { 0 }) {
@@ -263,7 +269,7 @@ impl Piece {
         moves
     }
 
-    fn generate_knight_moves(board: &Board, tile_start: Tile, piece_color: PieceColor) -> Vec<Move> {
+    fn generate_knight_moves(board: &Board, tile_start: Tile, piece_color: PieceColor, captures_only: bool) -> Vec<Move> {
         let mut moves = Vec::with_capacity(MAX_LEGAL_MOVES);
         
         let mut mask = Bitboard::new(KNIGHT_MASKS[tile_start.index()]);
@@ -272,13 +278,17 @@ impl Piece {
         let mut mask_clone = mask;
         while mask_clone.board != 0 {
             let tile_end = mask_clone.pop_lsb();
+            if captures_only && board.board[tile_end.index()].is_none() {
+                continue;
+            }
+
             moves.push(Move::new(tile_start, tile_end, MoveFlags::None));
         }
 
         moves
     }
 
-    fn generate_rook_moves(board: &Board, tile_start: Tile, piece_color: PieceColor) -> Vec<Move> {
+    fn generate_rook_moves(board: &Board, tile_start: Tile, piece_color: PieceColor, captures_only: bool) -> Vec<Move> {
         let mut moves = Vec::with_capacity(MAX_LEGAL_MOVES);
 
         // Retreive the mask through the magic indexing system.
@@ -290,13 +300,17 @@ impl Piece {
         let mut mask_clone = mask;
         while mask_clone.board != 0 {
             let tile_end = mask_clone.pop_lsb();
+            if captures_only && board.board[tile_end.index()].is_none() {
+                continue;
+            }
+
             moves.push(Move::new(tile_start, tile_end, MoveFlags::None));
         }
 
         moves
     }
 
-    fn generate_bishop_moves(board: &Board, tile_start: Tile, piece_color: PieceColor) -> Vec<Move> {
+    fn generate_bishop_moves(board: &Board, tile_start: Tile, piece_color: PieceColor, captures_only: bool) -> Vec<Move> {
         let mut moves = Vec::with_capacity(MAX_LEGAL_MOVES);
 
         // Retreive the mask through the magic indexing system.
@@ -308,13 +322,17 @@ impl Piece {
         let mut mask_clone = mask;
         while mask_clone.board != 0 {
             let tile_end = mask_clone.pop_lsb();
+            if captures_only && board.board[tile_end.index()].is_none() {
+                continue;
+            }
+
             moves.push(Move::new(tile_start, tile_end, MoveFlags::None));
         }
 
         moves
     }
 
-    fn generate_king_moves(board: &Board, tile_start: Tile, piece_color: PieceColor) -> Vec<Move> {
+    fn generate_king_moves(board: &Board, tile_start: Tile, piece_color: PieceColor, captures_only: bool) -> Vec<Move> {
         let mut moves = Vec::with_capacity(MAX_LEGAL_MOVES);
         
         let mut mask = Bitboard::new(KING_MASKS[tile_start.index()]);
@@ -332,7 +350,7 @@ impl Piece {
                     || first_tile.is_under_attack(board, !piece_color) || occupied.get_bit(first_tile)
                     || second_tile.is_under_attack(board, !piece_color) || occupied.get_bit(second_tile));
     
-                    if can_castle {
+                    if can_castle && !captures_only {
                         moves.push(Move::new(tile_start, second_tile, MoveFlags::Castling));
                     }
                 }
@@ -348,7 +366,7 @@ impl Piece {
                     || second_tile.is_under_attack(board, !piece_color) || occupied.get_bit(second_tile)
                     || occupied.get_bit(third_tile));
     
-                    if can_castle {
+                    if can_castle && !captures_only {
                         moves.push(Move::new(tile_start, second_tile, MoveFlags::Castling));
                     }
                 }
@@ -363,7 +381,7 @@ impl Piece {
                         || first_tile.is_under_attack(board, !piece_color) || occupied.get_bit(first_tile)
                         || second_tile.is_under_attack(board, !piece_color) || occupied.get_bit(second_tile));
         
-                        if can_castle {
+                        if can_castle && !captures_only {
                             moves.push(Move::new(tile_start, second_tile, MoveFlags::Castling));
                         }
                     }
@@ -380,7 +398,7 @@ impl Piece {
                         || second_tile.is_under_attack(board, !piece_color) || occupied.get_bit(second_tile)
                         || occupied.get_bit(third_tile));
         
-                        if can_castle {
+                        if can_castle && !captures_only {
                             moves.push(Move::new(tile_start, second_tile, MoveFlags::Castling));
                         }
                     }
@@ -392,6 +410,10 @@ impl Piece {
         let mut mask_clone = mask;
         while mask_clone.board != 0 {
             let tile_end = mask_clone.pop_lsb();
+            if captures_only && board.board[tile_end.index()].is_none() {
+                continue;
+            }
+
             moves.push(Move::new(tile_start, tile_end, MoveFlags::None));
         }
 

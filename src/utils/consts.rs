@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{char::MAX, collections::HashMap};
 use bytemuck::cast_slice;
 use strum::EnumCount;
 
@@ -18,8 +18,17 @@ lazy_static::lazy_static! {
     ].into_iter().collect();
 }
 
-pub const BEST_EVAL: i32 = i32::MAX;
+pub const MAX_DEPTH: i32 = 127;
+
 pub const WORST_EVAL: i32 = -i32::MAX;
+
+pub const SHALLOWEST_PROVEN_LOSS: i32 = -100000;
+pub const DEEPEST_PROVEN_LOSS: i32 = SHALLOWEST_PROVEN_LOSS + MAX_DEPTH;
+
+pub const DEEPEST_PROVEN_WIN: i32 = SHALLOWEST_PROVEN_WIN - MAX_DEPTH;
+pub const SHALLOWEST_PROVEN_WIN: i32 = 100000;
+
+pub const BEST_EVAL: i32 = i32::MAX;
 
 // Values of each piece, in centipawns.
 pub const PAWN_VALUE: u32 = 100;
