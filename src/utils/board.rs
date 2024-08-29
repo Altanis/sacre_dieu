@@ -25,9 +25,7 @@ impl Bitboard {
     }
 
     /// Instantiates a constant ZERO bitboard.
-    pub const fn ZERO() -> Self {
-        Bitboard { board: 0 }
-    }
+    pub const ZERO: Self = Bitboard { board: 0 };
 
     /// Sets a state on the board, given a tile.
     pub fn set_bit(&mut self, tile: Tile) {
@@ -289,12 +287,20 @@ impl Board {
     }
         
     /// Generates all legal moves for a given piece.
-    pub fn generate_moves(&self, moves: &mut ArrayVec<Move, MAX_LEGAL_MOVES>) {
-        for square in 0..64 {
-            if let Some(p) = self.board[square].clone() && p.piece_color == self.side_to_move {
-                moves.extend(p.generate_moves(self, Tile::new(square as u8 / 8, square as u8 % 8).unwrap()));
-            }
+    pub fn generate_moves(&self, moves: &mut ArrayVec<Move, MAX_LEGAL_MOVES>, captures_only: bool) {
+        let mut occupied = self.color(self.side_to_move);
+        while occupied != Bitboard::ZERO {
+            let tile = occupied.pop_lsb();
+            let piece = self.board[tile.index()].as_ref().expect("expected piece on tile in generate_moves");
+
+            moves.extend(piece.generate_moves(self, tile, captures_only));
         }
+
+        // for square in 0..64 {
+        //     if let Some(p) = self.board[square].clone() && p.piece_color == self.side_to_move {
+        //         moves.extend(p.generate_moves(self, Tile::new(square as u8 / 8, square as u8 % 8).unwrap()));
+        //     }
+        // }
     }
     
     /// Applies a move to the board.
@@ -516,7 +522,7 @@ impl Board {
         }
 
         let mut moves = ArrayVec::new();
-        self.generate_moves(&mut moves);
+        self.generate_moves(&mut moves, false);
         
         let mut num_moves = 0;
         for piece_move in moves.iter() {
@@ -536,7 +542,7 @@ impl Board {
         }
 
         let mut moves = ArrayVec::new();
-        self.generate_moves(&mut moves);
+        self.generate_moves(&mut moves, false);
 
         let mut num_positions = 0;
         for piece_move in moves.iter() {

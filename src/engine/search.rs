@@ -2,7 +2,7 @@ use std::{sync::{atomic::{AtomicBool, Ordering}, Arc}, time::{Duration, Instant}
 
 use arrayvec::ArrayVec;
 
-use crate::utils::{board::Board, consts::{BEST_EVAL, WORST_EVAL}, piece_move::{order_moves, Move}};
+use crate::utils::{board::Board, consts::{BEST_EVAL, MAX_DEPTH, SHALLOWEST_PROVEN_LOSS, WORST_EVAL}, piece_move::{order_moves, Move}};
 use super::eval;
 
 pub struct Searcher {
@@ -14,10 +14,14 @@ pub struct Searcher {
     pub max_depth: usize,
     /// A boolean signalling when to stop a search.
     pub stop_signal: Arc<AtomicBool>,
+    /// The past board positions, represented as zobrist hashes.
+    pub past_boards: Vec<u64>,
     /// The number of nodes searched.
     pub nodes: usize,
-    /// The past board positions, represented as zobrist hashes.
-    pub past_boards: Vec<u64>
+    /// The best move searched.
+    pub best_move: Option<Move>,
+    /// Whether or not the search finished.
+    pub finished: bool
 }
 
 impl Searcher {
@@ -28,115 +32,120 @@ impl Searcher {
             timer: Instant::now(),
             max_depth: depth,
             stop_signal,
+            past_boards: Vec::new(),
             nodes: 0,
-            past_boards: Vec::new()
+            best_move: None,
+            finished: true
         }
     }
 
     /// Searches for a move with a time constraint.
-    pub fn search_timed(&mut self, board: &Board) -> (i32, Option<Move>) {
+    pub fn search_timed(&mut self, board: &Board) -> i32 {
         self.timer = std::time::Instant::now();
-        let (mut eval, mut best_move): (i32, Option<Move>) = (0, None);
+        let (mut eval, mut best_move) = (0, None);
 
-        let mut index = 0;
         self.max_depth = 0;
-
-        while best_move.is_none() || (self.timer.elapsed() <= self.time_limit && !self.stop_signal.load(Ordering::Relaxed)) {
-            self.max_depth += 1;
-            index += 1;
-
-            if index >= 127 {
+        for _ in 0..=MAX_DEPTH {
+            if self.timer.elapsed() > self.time_limit || self.stop_signal.load(Ordering::Relaxed) {
                 break;
             }
 
-            let results = self.search(board, self.max_depth, 0, WORST_EVAL, BEST_EVAL);
+            self.max_depth += 1;
+            self.finished = true;
 
-            let finished = results.2;
+            let latest_eval = -self.search(board, self.max_depth, 0, WORST_EVAL, BEST_EVAL);
 
-            if finished || best_move.is_none() {
-                (eval, best_move) = (results.0, results.1);
+            if self.finished {
+                eval = latest_eval;
+                best_move = self.best_move;
             } else {
-                self.max_depth -= 1;
+                break;
             }
         }
 
-        (eval, best_move)
+        self.best_move = best_move;
+
+        eval
     }
 
     /// Searches for a move with the highest evaluation with a fixed depth and a hard time limit.
-    pub fn search(&mut self, board: &Board, depth: usize, ply: usize, mut alpha: i32, beta: i32) -> (i32, Option<Move>, bool) {
+    pub fn search(&mut self, board: &Board, depth: usize, ply: usize, mut alpha: i32, beta: i32) -> i32 {
         if board.half_move_counter >= 100 {
-            return (0, None, true); // 50 move repetition.
+            return 0; // 50 move repetition.
         }
         
         if depth == 0 {
-            return (eval::evaluate_board(board), None, true);
+            return self.quiescence_search(board, alpha, beta);
         }
 
         let mut moves = ArrayVec::new();
-        board.generate_moves(&mut moves);
+        board.generate_moves(&mut moves, false);
         order_moves(board, self, &mut moves);
 
-        let mut best_move = None;
-        let mut best_eval = WORST_EVAL;
-
-        let mut valid_moves = 0;
-        let mut last_valid_move: Option<Move> = None;
-
+        let mut has_moves = false;
         for piece_move in moves.iter() {
             let Some(board) = board.make_move(piece_move, false) else { continue; };
+            
             self.nodes += 1;
-
-            valid_moves += 1;
-            last_valid_move = Some(*piece_move);
+            has_moves = true;
 
             if self.past_boards.iter().filter(|p| **p == board.zobrist_key).count() == 2 {
-                continue;
+                return 0;
             }
 
-            let (mut eval, _, _) = self.search(&board, depth - 1, ply + 1, -beta, -alpha);
-            eval *= -1;
-
-            if eval > best_eval || best_move.is_none() {
-                best_eval = eval;
-                best_move = Some(*piece_move);
-            }
+            let eval = -self.search(&board, depth - 1, ply + 1, -beta, -alpha);
 
             if eval >= beta {
-                return (beta, best_move, true);
+                return beta;
             }
 
             if eval > alpha {
+                if ply == 0 {
+                    self.best_move = Some(*piece_move);
+                }
+
                 alpha = eval;
             }
 
             if self.stop_signal.load(Ordering::Relaxed) || self.timer.elapsed() > self.time_limit {
-                if best_move.is_none() {
-                    best_move = Some(*piece_move);
-                }
-
-                return (best_eval, best_move, false);
+                self.finished = false;
+                break;
             }
         }
 
-        if valid_moves == 0 {
+        if !has_moves {
             if board.in_check(board.side_to_move) {
-                return (WORST_EVAL + ply as i32, None, true); // Checkmate.
+                return SHALLOWEST_PROVEN_LOSS + ply as i32; // Checkmate.
             } else {
-                return (0, None, true); // Stalemate.
+                return 0; // Stalemate.
             }
         }
 
-        if best_move.is_none() && ply == 0 {
-            best_move = last_valid_move;
-
-            if best_move.is_none() {
-                panic!("null move in search ({} real moves, {} valid moves)", moves.len(), valid_moves);
-            }
-        }
-
-        (best_eval, best_move, true)
+        alpha
     }
 
-    // pub fn quiescence_search(&mut self, board: &Board, mut alpha: i32, beta: i32) -> 
+    pub fn quiescence_search(&mut self, board: &Board, mut alpha: i32, beta: i32) -> i32 {
+        let eval = eval::evaluate_board(board);
+        if eval >= beta {
+            return beta;
+        }
+        alpha = alpha.max(eval);
+
+        let mut moves = ArrayVec::new();
+        board.generate_moves(&mut moves, true);
+        order_moves(board, self, &mut moves);
+
+        for piece_move in moves.iter() {
+            let Some(board) = board.make_move(piece_move, false) else { continue; };
+            let evaluation = -self.quiescence_search(&board, -beta, -alpha);
+
+            if evaluation >= beta {
+                return beta;
+            }
+
+            alpha = alpha.max(eval);
+        }
+
+        alpha
+    }
 }
