@@ -1,5 +1,5 @@
 use std::{rc::Rc, sync::{atomic::{AtomicBool, Ordering}, mpsc::{Receiver, Sender}, Arc}, time::{Duration, Instant}};
-use crate::{engine::search::{self, Searcher}, utils::{board::Board, consts::{BEST_EVAL, DEEPEST_PROVEN_LOSS, DEEPEST_PROVEN_WIN, SHALLOWEST_PROVEN_LOSS, SHALLOWEST_PROVEN_WIN, WORST_EVAL}, piece::{PieceColor, PieceType}, piece_move::{Move, MoveFlags}}};
+use crate::{engine::search::{self, Searcher}, utils::{board::Board, consts::{WORST_EVAL, BEST_EVAL}, piece::{PieceColor, PieceType}, piece_move::{Move, MoveFlags}}};
 
 #[derive(Debug)]
 pub enum UCICommands {
@@ -109,7 +109,7 @@ pub fn handle_board(receiver: Receiver<UCICommands>, stop_signal: Arc<AtomicBool
                     if piece_move.flags == MoveFlags::None {
                         let piece = board.board[piece_move.initial.index()].as_ref().expect("no piece on initial move index");
                     
-                        let moves = piece.generate_moves(&board, piece_move.initial, false);
+                        let moves = piece.generate_moves(&board, piece_move.initial);
                         let real_move = moves
                             .iter()
                             .find(|mv| mv.end.index() == piece_move.end.index())
@@ -126,7 +126,7 @@ pub fn handle_board(receiver: Receiver<UCICommands>, stop_signal: Arc<AtomicBool
 
                 let engine_time_left = if board.side_to_move == PieceColor::White { white_time } else { black_time };
                 
-                let mut eval = 0;
+                let (mut eval, mut best_move, mut finished): (i32, Option<Move>, bool) = (0, None, true);
                 let mut timer: Instant = Instant::now();
                 let (mut nodes, mut max_depth) = (0, 0);
 
@@ -134,35 +134,39 @@ pub fn handle_board(receiver: Receiver<UCICommands>, stop_signal: Arc<AtomicBool
                 searcher.timer = Instant::now();
                 searcher.max_depth = 5;
                 searcher.nodes = 0;
-                searcher.best_move = None;
-                searcher.finished = true;
 
-                let (alpha, beta) = (WORST_EVAL, BEST_EVAL);
+                {
+                    let (alpha, beta) = (WORST_EVAL, BEST_EVAL);
+    
+                    if time_limit != -1 {
+                        // Iterative deepening until time limit reached.
+                        searcher.time_limit = Duration::from_millis(time_limit as u64);
+                        (eval, best_move) = searcher.search_timed(&board);
+                    } else if engine_time_left != 0 {
+                        // hard limit by dividing engine_time_left by 20-30, then by using linreg, then softlimit; sprt against eachother
+                        searcher.time_limit = Duration::from_millis(engine_time_left / 20);
+                        (eval, best_move) = searcher.search_timed(&board);
+                    } else if depth != -1 {
+                        // Search up to a specified depth.
+                        searcher.max_depth = depth as usize;
+                        (eval, best_move, finished) = searcher.search(&board, searcher.max_depth, 0, alpha, beta);
+                    } else {
+                        // Iterative deepening until `stop` is sent.
+                        searcher.time_limit = Duration::MAX;
+                        (eval, best_move) = searcher.search_timed(&board);
+                    }
+    
+                    if !finished {
+                        println!("[WARN] Results are premature.");
+                    }
 
-                if time_limit != -1 {
-                    // Iterative deepening until time limit reached.
-                    searcher.time_limit = Duration::from_millis(time_limit as u64);
-                    eval = searcher.search_timed(&board);
-                } else if engine_time_left != 0 {
-                    // hard limit by dividing engine_time_left by 20-30, then by using linreg, then softlimit; sprt against eachother
-                    searcher.time_limit = Duration::from_millis(engine_time_left / 20);
-                    eval = searcher.search_timed(&board);
-                } else if depth != -1 {
-                    // Search up to a specified depth.
-                    searcher.max_depth = depth as usize;
-                    eval = searcher.search(&board, searcher.max_depth, 0, alpha, beta);
-                } else {
-                    // Iterative deepening until `stop` is sent.
-                    searcher.time_limit = Duration::MAX;
-                    eval = searcher.search_timed(&board);
+                    (timer, nodes, max_depth) = (searcher.timer, searcher.nodes, searcher.max_depth);
                 }
-
-                (timer, nodes, max_depth) = (searcher.timer, searcher.nodes, searcher.max_depth);
 
                 let ms_time = timer.elapsed().as_millis();
                 let nps = nodes as f64 / (ms_time as f64 / 1000.0);
 
-                if let Some(best_move) = searcher.best_move {
+                if let Some(best_move) = best_move {
                     board = board.make_move(&best_move, false).unwrap();
 
                     if board.half_move_counter == 0 {
@@ -171,16 +175,7 @@ pub fn handle_board(receiver: Receiver<UCICommands>, stop_signal: Arc<AtomicBool
                     
                     searcher.past_boards.push(board.zobrist_key);
 
-                    if (SHALLOWEST_PROVEN_LOSS..=DEEPEST_PROVEN_LOSS).contains(&eval) {
-                        let mate_in = ((SHALLOWEST_PROVEN_LOSS - eval) / 2);
-                        reply(&format!("info depth {} score mate {} time {} nodes {} nps {}", max_depth, mate_in, ms_time, nodes, nps));
-                    } else if (DEEPEST_PROVEN_WIN..=SHALLOWEST_PROVEN_WIN).contains(&eval) {
-                        let mate_in = ((SHALLOWEST_PROVEN_WIN - eval) / 2);
-                        reply(&format!("info depth {} score mate {} time {} nodes {} nps {}", max_depth, mate_in, ms_time, nodes, nps));
-                    } else {
-                        reply(&format!("info depth {} score cp {} time {} nodes {} nps {}", max_depth, eval, ms_time, nodes, nps));
-                    }
-
+                    reply(&format!("info depth {} score cp {} time {} nodes {} nps {}", max_depth, eval, ms_time, nodes, nps));
                     reply(&format!("bestmove {}", best_move.to_uci()));
                 } else {
                     panic!("null move");

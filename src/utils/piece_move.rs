@@ -118,7 +118,7 @@ pub fn order_moves(board: &Board, searcher: &Searcher, moves: &mut ArrayVec<Move
         //     PieceColor::Black => WHITE_PAWN_MASK[piece_move.end.index()].1,
         // }) & enemy_pawns;
 
-        // if pawn_attacks != Bitboard::ZERO {
+        // if pawn_attacks != Bitboard::ZERO() {
         //     score -= initial_piece.piece_type.get_value() as i32;
         // }
     }

@@ -43,18 +43,19 @@ pub fn count_material(board: &Board, side: PieceColor) -> u32 {
 
 /// Evaluates a piece square score for a certain side.
 pub fn evaluate_piece_square_score(board: &Board, side: PieceColor) -> (i32, i32) {
+    // todo "track a total midgame and total endgame score and interpolate at the end"
+
     let mut mg = 0_i32;
     let mut eg = 0_i32;
 
     for piece_type in PieceType::iter() {
-        let piece_index = piece_type.clone() as usize;
+        let index = piece_type.clone() as usize;
         let mut piece_bitboard = board.colored_piece(piece_type, side);
 
-        while piece_bitboard != Bitboard::ZERO {
+        while piece_bitboard != Bitboard::ZERO() {
             let tile = piece_bitboard.pop_lsb();
-            let tile_index = if side == PieceColor::White { tile.index() } else { tile.index() ^ 56 };
 
-            let (opening_eval, endgame_eval) = PIECE_SQUARE_TABLE[piece_index][tile_index];
+            let (opening_eval, endgame_eval) = PIECE_SQUARE_TABLE[index][tile.index() ^ 56];
             mg += opening_eval as i32;
             eg += endgame_eval as i32;
         }
