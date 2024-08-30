@@ -1,4 +1,3 @@
-use std::{char::MAX, collections::HashMap};
 use bytemuck::cast_slice;
 use strum::EnumCount;
 
@@ -7,15 +6,16 @@ use super::{board::Bitboard, piece::{PieceType, PieceColor}};
 pub const MAX_LEGAL_MOVES: usize = 218;
 pub const PIECE_INDICES: usize = PieceType::COUNT + PieceColor::COUNT;
 
-lazy_static::lazy_static! {
-    pub static ref PIECE_MAP: HashMap<char, PieceType> = vec![
-        ('p', PieceType::Pawn),
-        ('n', PieceType::Knight),
-        ('b', PieceType::Bishop),
-        ('r', PieceType::Rook),
-        ('q', PieceType::Queen),
-        ('k', PieceType::King),
-    ].into_iter().collect();
+pub const fn get_piece_type(piece_code: char) -> PieceType {
+    match piece_code {
+        'p' => PieceType::Pawn,
+        'n' => PieceType::Knight,
+        'b' => PieceType::Bishop,
+        'r' => PieceType::Rook,
+        'q' => PieceType::Queen,
+        'k' => PieceType::King,
+        _ => panic!("invalid piece code")
+    }
 }
 
 pub const MAX_DEPTH: i32 = 127;

@@ -2,7 +2,7 @@ use arrayvec::ArrayVec;
 
 use crate::engine::search::Searcher;
 
-use super::{board::{Bitboard, Board}, consts::{BLACK_PAWN_MASK, MAX_LEGAL_MOVES, PIECE_SQUARE_TABLE, WHITE_PAWN_MASK}, piece::{PieceColor, PieceType, Tile}};
+use super::{board::{Bitboard, Board}, consts::{BLACK_PAWN_MASK, MAX_LEGAL_MOVES, WHITE_PAWN_MASK}, piece::{PieceColor, PieceType, Tile}};
 
 /// A structure representing a move.
 #[derive(Debug, Clone, Copy, PartialEq)]

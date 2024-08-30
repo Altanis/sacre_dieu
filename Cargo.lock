@@ -167,7 +167,6 @@ dependencies = [
  "arrayvec",
  "bytemuck",
  "colored",
- "lazy_static",
  "rand",
  "serde",
  "serde_json",

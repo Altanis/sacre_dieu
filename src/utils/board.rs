@@ -1,10 +1,8 @@
-use std::{ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not}, thread::current};
+use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not};
 
 use arrayvec::ArrayVec;
-use strum::EnumCount;
-use crate::{engine::eval::{self, evaluate_board}, utils::consts::WORST_EVAL};
 
-use super::{consts::{get_bishop_mask, get_rook_mask, MagicEntry, BISHOP_MAGICS, BLACK_PAWN_MASK, KING_MASKS, KNIGHT_MASKS, MAX_LEGAL_MOVES, PAWN_VALUE, PIECE_INDICES, PIECE_MAP, ROOK_MAGICS, WHITE_PAWN_MASK}, piece::*, piece_move::{Move, MoveFlags}, zobrist::{generate_zobrist_hash, ZOBRIST_CASTLING_KEYS, ZOBRIST_EN_PASSANT_KEYS, ZOBRIST_SIDE_TO_MOVE}};
+use super::{consts::{MagicEntry, PIECE_INDICES, get_piece_type, MAX_LEGAL_MOVES}, piece::*, piece_move::{Move, MoveFlags}, zobrist::{generate_zobrist_hash, ZOBRIST_CASTLING_KEYS, ZOBRIST_EN_PASSANT_KEYS, ZOBRIST_SIDE_TO_MOVE}};
 use colored::Colorize;
 
 /// A type representing an array of bitboards for tracking piece/color state.
@@ -249,7 +247,7 @@ impl Board {
                     file = 0;
                 },
                 'p' | 'n' | 'b' | 'r' | 'q' | 'k' => {
-                    let piece_type = PIECE_MAP.get(&char.to_ascii_lowercase()).expect("").clone();
+                    let piece_type = get_piece_type(char.to_ascii_lowercase());
                     chess_board.board[(rank * 8 + file) as usize] = Some(Piece::new(piece_type.clone(), piece_color));
 
                     chess_board.piece_bitboard[piece_type.to_index()].set_bit(Tile::new(rank, file).expect("invalid coordinate"));
@@ -534,53 +532,53 @@ impl Board {
         num_moves
     }
 
-    pub fn debug_perft(&self, depth: usize, initial_depth: usize, last_moves: &mut Vec<String>) -> (u64, std::time::Duration) {
-        let time = std::time::Instant::now();
+    // pub fn debug_perft(&self, depth: usize, initial_depth: usize, last_moves: &mut Vec<String>) -> (u64, std::time::Duration) {
+    //     let time = std::time::Instant::now();
 
-        if depth == 0 {
-            return (1, time.elapsed());
-        }
+    //     if depth == 0 {
+    //         return (1, time.elapsed());
+    //     }
 
-        let mut moves = ArrayVec::new();
-        let mut qsearch_moves = ArrayVec::new();
-        self.generate_moves(&mut moves, false);
-        self.generate_moves(&mut qsearch_moves, true);
+    //     let mut moves = ArrayVec::new();
+    //     let mut qsearch_moves = ArrayVec::new();
+    //     self.generate_moves(&mut moves, false);
+    //     self.generate_moves(&mut qsearch_moves, true);
 
-        let vec: Vec<&Move> = moves.iter().filter(|x| self.board[x.end.index()].is_some() || x.flags == MoveFlags::EnPassant).collect();
-        let qsearch_vec: Vec<&Move> = qsearch_moves.iter().collect();
+    //     let vec: Vec<&Move> = moves.iter().filter(|x| self.board[x.end.index()].is_some() || x.flags == MoveFlags::EnPassant).collect();
+    //     let qsearch_vec: Vec<&Move> = qsearch_moves.iter().collect();
 
-        assert_eq!(vec, qsearch_vec);
+    //     assert_eq!(vec, qsearch_vec);
 
-        // for i in 0..vec.len() {
-        //     if vec[i] != qsearch_vec[i] {
-        //         panic!("{:?} {:?}", vec[i], qsearch_vec[i]);
-        //     }
-        // }
+    //     // for i in 0..vec.len() {
+    //     //     if vec[i] != qsearch_vec[i] {
+    //     //         panic!("{:?} {:?}", vec[i], qsearch_vec[i]);
+    //     //     }
+    //     // }
 
-        let mut num_positions = 0;
-        for piece_move in moves.iter() {
-            let cur_code = piece_move.to_uci();
+    //     let mut num_positions = 0;
+    //     for piece_move in moves.iter() {
+    //         let cur_code = piece_move.to_uci();
 
-            // let dbg = last_moves.len() == 3 && last_moves[0] == "f1f2" && last_moves[1] == "b2a1n" && last_moves[2] == "d1c2";
-            // let dbg = last_moves.len() == 3 && last_moves[0] == "f1f2" && last_moves[1] == "b2a1r" && last_moves[2] == "d1a1";
-            // let dbg = last_moves.len() == 4 && last_moves[0] == "h1g2" && last_moves[1] == "a1b2" && last_moves[2] == "g2f1" && last_moves[3] == "b2a1";
+    //         // let dbg = last_moves.len() == 3 && last_moves[0] == "f1f2" && last_moves[1] == "b2a1n" && last_moves[2] == "d1c2";
+    //         // let dbg = last_moves.len() == 3 && last_moves[0] == "f1f2" && last_moves[1] == "b2a1r" && last_moves[2] == "d1a1";
+    //         // let dbg = last_moves.len() == 4 && last_moves[0] == "h1g2" && last_moves[1] == "a1b2" && last_moves[2] == "g2f1" && last_moves[3] == "b2a1";
 
-            if let Some(board) = self.make_move(piece_move, false) {    
-                let mut moves = last_moves.clone();
-                moves.push(cur_code.clone());
+    //         if let Some(board) = self.make_move(piece_move, false) {    
+    //             let mut moves = last_moves.clone();
+    //             moves.push(cur_code.clone());
     
-                let new_nodes = board.debug_perft(depth - 1, initial_depth, &mut moves).0;
+    //             let new_nodes = board.debug_perft(depth - 1, initial_depth, &mut moves).0;
     
-                // if dbg {
-                    // println!("{} - {}", cur_code, new_nodes);
-                // }
+    //             // if dbg {
+    //                 // println!("{} - {}", cur_code, new_nodes);
+    //             // }
     
-                num_positions += new_nodes;
-            }
-        }
+    //             num_positions += new_nodes;
+    //         }
+    //     }
 
-        (num_positions, time.elapsed())
-    }
+    //     (num_positions, time.elapsed())
+    // }
 
     /// Generates a magic index given a magic entry and a blocker bitboard.
     pub fn generate_magic_index(magic: &MagicEntry, blockers: &Bitboard) -> usize {
@@ -593,7 +591,7 @@ impl Board {
 
 impl std::fmt::Debug for Board {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f);
+        let  _ = writeln!(f);
 
         let board_size = 8;
         
@@ -621,7 +619,7 @@ impl std::fmt::Debug for Board {
             writeln!(f, "|")?;
         }
         
-        writeln!(f);
+        let _ = writeln!(f);
         
 
         std::fmt::Result::Ok(())
@@ -630,7 +628,7 @@ impl std::fmt::Debug for Board {
 
 #[cfg(test)]
 mod tests {
-    use crate::utils::{board::{Board, Tile}, piece_move::{Move, MoveFlags}};
+    use crate::utils::{board::Board, piece_move::{Move, MoveFlags}};
     use colored::Colorize;
 
     const EPD_FILE: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 ;D1 20 ;D2 400 ;D3 8902 ;D4 197281 ;D5 4865609 ;D6 119060324
@@ -787,7 +785,7 @@ rnbqkb1r/ppppp1pp/7n/4Pp2/8/8/PPPP1PPP/RNBQKBNR w KQkq f6 0 3 ;D5 11139762";
 
     #[test]
     fn test_movegen() {
-        let mut lines = EPD_FILE.split('\n');
+        let lines = EPD_FILE.split('\n');
         let length = lines.clone().count();
     
         let mut idx = 0;

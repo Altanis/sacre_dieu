@@ -1,5 +1,5 @@
-use std::{rc::Rc, sync::{atomic::{AtomicBool, Ordering}, mpsc::{Receiver, Sender}, Arc}, time::{Duration, Instant}};
-use crate::{engine::search::{self, Searcher}, utils::{board::Board, consts::{BEST_EVAL, DEEPEST_PROVEN_LOSS, DEEPEST_PROVEN_WIN, SHALLOWEST_PROVEN_LOSS, SHALLOWEST_PROVEN_WIN, WORST_EVAL}, piece::{PieceColor, PieceType}, piece_move::{Move, MoveFlags}}};
+use std::{sync::{atomic::{AtomicBool, Ordering}, mpsc::{Receiver, Sender}, Arc}, time::{Duration, Instant}};
+use crate::{engine::search::Searcher, utils::{board::Board, consts::{BEST_EVAL, DEEPEST_PROVEN_LOSS, DEEPEST_PROVEN_WIN, SHALLOWEST_PROVEN_LOSS, SHALLOWEST_PROVEN_WIN, WORST_EVAL}, piece::PieceColor, piece_move::{Move, MoveFlags}}};
 
 #[derive(Debug)]
 pub enum UCICommands {
@@ -180,10 +180,10 @@ pub fn handle_board(receiver: Receiver<UCICommands>, stop_signal: Arc<AtomicBool
                     searcher.past_boards.push(board.zobrist_key);
 
                     if (SHALLOWEST_PROVEN_LOSS..=DEEPEST_PROVEN_LOSS).contains(&eval) {
-                        let mate_in = ((SHALLOWEST_PROVEN_LOSS - eval) / 2);
+                        let mate_in = (SHALLOWEST_PROVEN_LOSS - eval) / 2;
                         reply(&format!("info depth {} score mate {} time {} nodes {} nps {}", max_depth, mate_in, ms_time, nodes, nps));
                     } else if (DEEPEST_PROVEN_WIN..=SHALLOWEST_PROVEN_WIN).contains(&eval) {
-                        let mate_in = ((SHALLOWEST_PROVEN_WIN - eval) / 2);
+                        let mate_in = (SHALLOWEST_PROVEN_WIN - eval) / 2;
                         reply(&format!("info depth {} score mate {} time {} nodes {} nps {}", max_depth, mate_in, ms_time, nodes, nps));
                     } else {
                         reply(&format!("info depth {} score cp {} time {} nodes {} nps {}", max_depth, eval, ms_time, nodes, nps));
