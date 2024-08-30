@@ -9,9 +9,9 @@ A UCI compliant chess engine which may or may not be French.
 - `v4_qsearch`: v3 + quiescence search
 - `v5_qsearch_ext`: v4 + noisy promotions
 - `v6_tuned_psqt` v5 + tuned psqt values
-- `v7_tuned_material`: v6 + tapered and tuned material values
+- `v7_tt`: v6 + transposition tables
 
-todo: fix mate scores
+todo: TT table, fix mate scores, etc
 
 ## Features
 - [x] FEN Parser
@@ -33,8 +33,8 @@ todo: fix mate scores
     - [x] Piece Square Tables
     - [ ] Tuned HCE
 - [x] Quiescence Search (Captures + Promotions)
-- [ ] PVS
 - [ ] Transposition Table
+- [ ] PVS
 - [ ] Killer Moves
 - [ ] Passed Pawn Detection
 - [ ] Reverse Futility Pruning
@@ -43,5 +43,7 @@ todo: fix mate scores
 - [ ] Check Extensions
 - [ ] Hash Move Ordering
 - [ ] History Heuristic
+- [ ] Razoring
+- [ ] Aspiration Tables
 - [ ] NNUE
 - [ ] Threading
