@@ -17,7 +17,7 @@ pub fn evaluate_board(board: &Board) -> i32 {
     mg += psqt_white_mg - psqt_black_mg;
     eg += psqt_white_eg - psqt_black_eg;
 
-    let phase = board.phase() as i32;
+    let phase = (board.phase() as i32).min(24);
     let eval = (mg * phase + eg * (24 - phase)) / 24;
     let perspective = if board.side_to_move == PieceColor::White { 1 } else { -1 };
 
@@ -52,11 +52,11 @@ pub fn evaluate_piece_square_score(board: &Board, side: PieceColor) -> (i32, i32
 
         while piece_bitboard != Bitboard::ZERO {
             let tile = piece_bitboard.pop_lsb();
-            let tile_index = if side == PieceColor::White { tile.index() } else { tile.index() ^ 56 };
+            let tile_index = if side == PieceColor::White { tile.index() ^ 56 } else { tile.index() };
 
             let (opening_eval, endgame_eval) = PIECE_SQUARE_TABLE[piece_index][tile_index];
-            mg += opening_eval as i32;
-            eg += endgame_eval as i32;
+            mg += opening_eval;
+            eg += endgame_eval;
         }
     }
 

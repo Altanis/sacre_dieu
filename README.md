@@ -8,6 +8,10 @@ A UCI compliant chess engine which may or may not be French.
 - `v3_psqt`: v2 + psqt tables
 - `v4_qsearch`: v3 + quiescence search
 - `v5_qsearch_ext`: v4 + noisy promotions
+- `v6_tuned_psqt` v5 + tuned psqt values
+- `v7_tuned_material`: v6 + tapered and tuned material values
+
+todo: fix mate scores
 
 ## Features
 - [x] FEN Parser

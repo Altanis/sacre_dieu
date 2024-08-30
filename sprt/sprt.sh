@@ -1,7 +1,6 @@
 cutechess/build/cutechess-cli \
-  -engine name=Aspect cmd=releases/v5_qsearch_ext \
-  -engine name=BlueCannonBall cmd=releases/v4_qsearch \
-  -debug \
+  -engine name=Aspect cmd=releases/v6_tuned_psqt \
+  -engine name=BlueCannonBall cmd=releases/v5_qsearch_ext \
   -games 2 -rounds 50000 \
   -pgnout "sprt/pgnout.txt" \
   -sprt elo0=0 elo1=10 alpha=0.05 beta=0.05 \
