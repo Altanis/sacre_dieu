@@ -251,6 +251,11 @@ impl Piece {
             if Some(tile_end) == en_passant {
                 moves.push(Move::new(tile_start, tile_end, MoveFlags::EnPassant));
                 continue;
+            } else if tile_end.rank == (if piece_color == PieceColor::White { 7 } else { 0 }) {
+                moves.push(Move::new(tile_start, tile_end, MoveFlags::KnightPromotion));
+                moves.push(Move::new(tile_start, tile_end, MoveFlags::BishopPromotion));
+                moves.push(Move::new(tile_start, tile_end, MoveFlags::RookPromotion));
+                moves.push(Move::new(tile_start, tile_end, MoveFlags::QueenPromotion));
             }
 
             if qsearch && board.board[tile_end.index()].is_none() {

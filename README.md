@@ -7,7 +7,7 @@ A UCI compliant chess engine which may or may not be French.
 - `v2_mvv_lva`: v1 + mvv-lva + super naive see
 - `v3_psqt`: v2 + psqt tables
 - `v4_qsearch`: v3 + quiescence search
-- `v5_qsearch_extra`: v4 + noisy promotions
+- `v5_qsearch_ext`: v4 + noisy promotions
 
 ## Features
 - [x] FEN Parser
@@ -28,7 +28,7 @@ A UCI compliant chess engine which may or may not be French.
     - [x] Material Evaluation
     - [x] Piece Square Tables
     - [ ] Tuned HCE
-- [ ] Quiescence Search (Captures)
+- [x] Quiescence Search (Captures + Promotions)
 - [ ] PVS
 - [ ] Transposition Table
 - [ ] Killer Moves

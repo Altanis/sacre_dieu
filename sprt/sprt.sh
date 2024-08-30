@@ -1,6 +1,6 @@
 cutechess/build/cutechess-cli \
-  -engine name=Aspect cmd=releases/v4_qsearch \
-  -engine name=BlueCannonBall cmd=releases/v3_psqt \
+  -engine name=Aspect cmd=releases/v5_qsearch_ext \
+  -engine name=BlueCannonBall cmd=releases/v4_qsearch \
   -debug \
   -games 2 -rounds 50000 \
   -pgnout "sprt/pgnout.txt" \
