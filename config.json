@@ -1,0 +1,133 @@
+{
+    "resign": {
+        "move_count": 1,
+        "score": 0,
+        "twosided": false,
+        "enabled": false
+    },
+    "draw": {
+        "move_number": 0,
+        "move_count": 1,
+        "score": 0,
+        "enabled": false
+    },
+    "maxmoves": {
+        "move_count": 1,
+        "enabled": false
+    },
+    "opening": {
+        "file": "sprt/openings.epd",
+        "format": 0,
+        "order": 0,
+        "plies": -1,
+        "start": 1
+    },
+    "pgn": {
+        "file": "sprt/pgnout.txt",
+        "notation": 0,
+        "track_nodes": false,
+        "track_seldepth": false,
+        "track_nps": false,
+        "track_hashfull": false,
+        "track_tbhits": false,
+        "min": false
+    },
+    "epd": {
+        "file": ""
+    },
+    "sprt": {
+        "alpha": 0.05,
+        "beta": 0.05,
+        "elo0": 0.0,
+        "elo1": 10.0,
+        "model": "normalized",
+        "enabled": true
+    },
+    "event_name": "Fast-Chess Tournament",
+    "site": "?",
+    "config_name": "",
+    "output": 0,
+    "seed": 951356066,
+    "variant": 0,
+    "ratinginterval": 10,
+    "scoreinterval": 1,
+    "autosaveinterval": 20,
+    "games": 2,
+    "rounds": 50000,
+    "concurrency": 6,
+    "overhead": 0,
+    "recover": false,
+    "report_penta": true,
+    "affinity": false,
+    "randomseed": false,
+    "engines": [
+        {
+            "name": "Aspect",
+            "dir": "",
+            "cmd": "releases/v7_fail_soft",
+            "args": "",
+            "options": [],
+            "limit": {
+                "tc": {
+                    "increment": 80,
+                    "fixed_time": 0,
+                    "time": 8000,
+                    "moves": 0,
+                    "timemargin": 0
+                },
+                "nodes": 0,
+                "plies": 0
+            },
+            "variant": 0,
+            "recover": false
+        },
+        {
+            "name": "BlueGarbageBall",
+            "dir": "",
+            "cmd": "releases/v6_tuned_psqt",
+            "args": "",
+            "options": [],
+            "limit": {
+                "tc": {
+                    "increment": 80,
+                    "fixed_time": 0,
+                    "time": 8000,
+                    "moves": 0,
+                    "timemargin": 0
+                },
+                "nodes": 0,
+                "plies": 0
+            },
+            "variant": 0,
+            "recover": false
+        }
+    ],
+    "stats": {
+        "Aspect": {
+            "BlueGarbageBall": {
+                "wins": 59,
+                "losses": 29,
+                "draws": 34,
+                "penta_WW": 13,
+                "penta_WD": 16,
+                "penta_WL": 17,
+                "penta_DD": 5,
+                "penta_LD": 8,
+                "penta_LL": 2
+            }
+        },
+        "BlueGarbageBall": {
+            "Aspect": {
+                "wins": 29,
+                "losses": 112,
+                "draws": 67,
+                "penta_WW": 4,
+                "penta_WD": 10,
+                "penta_WL": 11,
+                "penta_DD": 13,
+                "penta_LD": 31,
+                "penta_LL": 35
+            }
+        }
+    }
+}

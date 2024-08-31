@@ -9,9 +9,9 @@ A UCI compliant chess engine which may or may not be French.
 - `v4_qsearch`: v3 + quiescence search
 - `v5_qsearch_ext`: v4 + noisy promotions
 - `v6_tuned_psqt` v5 + tuned psqt values
-- `v7_tt`: v6 + transposition tables
+- `v7_fail_soft`: v6, but search/qsearch are fail soft now
 
-todo: TT table, fix mate scores, etc
+todo: fix draw checks, TT table search, TT table qsearch, TT table move ordering, fix mate scores
 
 ## Features
 - [x] FEN Parser

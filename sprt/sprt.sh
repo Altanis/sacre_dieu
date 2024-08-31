@@ -1,5 +1,5 @@
 fastchess/fastchess \
-  -engine name=Aspect cmd=releases/v7_endgame_heuristics \
+  -engine name=Aspect cmd=releases/v7_fail_soft \
   -engine name=BlueGarbageBall cmd=releases/v6_tuned_psqt \
   -games 2 -rounds 50000 \
   -pgnout "sprt/pgnout.txt" \
@@ -7,5 +7,6 @@ fastchess/fastchess \
   -each proto=uci tc=8+0.08 \
   -log file="stderr.txt" \
   -openings order=random file="sprt/openings.epd" format=epd \
+  -randomseed \
   -concurrency 6 \
   -ratinginterval 10 \

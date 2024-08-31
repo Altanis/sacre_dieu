@@ -6,6 +6,7 @@ pub enum UCICommands {
     SetPosition(String),
     ForceMove(String),
     NewGame,
+    ResizeTT(usize),
     StartSearch(i64, i64, u64, u64), // todo move stop_signal to handle_search function
     PrintBoard
 }
@@ -17,6 +18,14 @@ pub fn handle_command(command: &str, sender: Sender<UCICommands>, stop_signal: A
     match command {
         "uci" => reply("uciok"),
         "isready" => reply("readyok"),
+        "setoption" => {
+            if args.next() == Some("name") && args.next() == Some("Hash") && args.next() == Some("value") {
+                let size = args.next().expect("failed to parse hash size").parse::<usize>().expect("failed to parse hash size");
+                sender.send(UCICommands::ResizeTT(size)).expect("failed to send resize cmd");
+            } else {
+                reply("setoption only supports setting hashsize.");
+            }
+        },
         "ucinewgame" => {
             sender.send(UCICommands::NewGame).expect("couldnt send ucinewgame");
             stop_signal.store(true, Ordering::Relaxed);
@@ -106,7 +115,7 @@ pub fn handle_board(receiver: Receiver<UCICommands>, stop_signal: Arc<AtomicBool
     while let Ok(message) = receiver.recv() {
         match message {
             UCICommands::NewGame => {
-                // todo reset TT table
+                searcher.transposition_table.clear();
                 searcher.past_boards.clear();
             },
             UCICommands::SetPosition(pos) => board = Board::new(pos.as_str()),
@@ -128,6 +137,9 @@ pub fn handle_board(receiver: Receiver<UCICommands>, stop_signal: Arc<AtomicBool
                         board = board.make_move(&piece_move, false).unwrap();
                     }
                 }
+            },
+            UCICommands::ResizeTT(mb) => {
+                searcher.transposition_table.resize_mb(mb);
             },
             UCICommands::StartSearch(time_limit, depth, white_time, black_time) => {
                 stop_signal.store(false, Ordering::Relaxed);
