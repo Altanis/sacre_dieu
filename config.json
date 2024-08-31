@@ -47,7 +47,7 @@
     "site": "?",
     "config_name": "",
     "output": 0,
-    "seed": 951356066,
+    "seed": 8453152466630084619,
     "variant": 0,
     "ratinginterval": 10,
     "scoreinterval": 1,
@@ -59,12 +59,12 @@
     "recover": false,
     "report_penta": true,
     "affinity": false,
-    "randomseed": false,
+    "randomseed": true,
     "engines": [
         {
             "name": "Aspect",
             "dir": "",
-            "cmd": "releases/v7_fail_soft",
+            "cmd": "releases/v8_draw_score",
             "args": "",
             "options": [],
             "limit": {
@@ -105,28 +105,28 @@
     "stats": {
         "Aspect": {
             "BlueGarbageBall": {
-                "wins": 59,
-                "losses": 29,
-                "draws": 34,
-                "penta_WW": 13,
-                "penta_WD": 16,
-                "penta_WL": 17,
-                "penta_DD": 5,
-                "penta_LD": 8,
-                "penta_LL": 2
+                "wins": 57,
+                "losses": 22,
+                "draws": 41,
+                "penta_WW": 12,
+                "penta_WD": 18,
+                "penta_WL": 15,
+                "penta_DD": 8,
+                "penta_LD": 7,
+                "penta_LL": 0
             }
         },
         "BlueGarbageBall": {
             "Aspect": {
-                "wins": 29,
-                "losses": 112,
-                "draws": 67,
-                "penta_WW": 4,
-                "penta_WD": 10,
-                "penta_WL": 11,
-                "penta_DD": 13,
+                "wins": 44,
+                "losses": 108,
+                "draws": 80,
+                "penta_WW": 5,
+                "penta_WD": 11,
+                "penta_WL": 23,
+                "penta_DD": 19,
                 "penta_LD": 31,
-                "penta_LL": 35
+                "penta_LL": 27
             }
         }
     }

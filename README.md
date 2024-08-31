@@ -10,6 +10,7 @@ A UCI compliant chess engine which may or may not be French.
 - `v5_qsearch_ext`: v4 + noisy promotions
 - `v6_tuned_psqt` v5 + tuned psqt values
 - `v7_fail_soft`: v6, but search/qsearch are fail soft now
+- `v8_draw_score`: v7, but fixing how draw scores work
 
 todo: fix draw checks, TT table search, TT table qsearch, TT table move ordering, fix mate scores
 

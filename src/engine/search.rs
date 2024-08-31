@@ -78,17 +78,10 @@ impl Searcher {
 
     /// Searches for a move with the highest evaluation with a fixed depth and a hard time limit.
     pub fn search(&mut self, board: &Board, depth: usize, ply: usize, mut alpha: i32, beta: i32) -> i32 {
-        // check if this is better
-        // if ply > 0 {
-        //     if board.half_move_counter >= 100 || self.past_boards.iter().filter(|p| **p == board.zobrist_key).count() == 2 {
-        //         return 0; // 50 move repetition or threefold repetition.
-        //     }
-        // }
-
-        if board.half_move_counter >= 100 {
-            return 0; // 50 move repetition.
+        if ply > 0 && (board.half_move_counter >= 100 || self.past_boards.iter().filter(|p| **p == board.zobrist_key).count() == 2) {
+            return 0; // 50 move repetition or threefold repetition.
         }
-        
+
         if depth == 0 {
             return self.quiescence_search(board, alpha, beta);
         }
@@ -100,16 +93,13 @@ impl Searcher {
         let mut has_moves = false;
 
         let (mut best_score, mut best_move) = (WORST_EVAL, None);
+        let mut evaluation_type = EvaluationType::UpperBound;
 
         for piece_move in moves.iter() {
             let Some(board) = board.make_move(piece_move, false) else { continue; };
             
             self.nodes += 1;
             has_moves = true;
-
-            if ply != 0 && self.past_boards.iter().filter(|p| **p == board.zobrist_key).count() == 2 {
-                return 0;
-            }
 
             let score = -self.search(&board, depth - 1, ply + 1, -beta, -alpha);
 
@@ -118,6 +108,8 @@ impl Searcher {
             }
 
             if score > alpha {
+                evaluation_type = EvaluationType::Exact;
+
                 alpha = score;
                 best_move = Some(*piece_move);
 
@@ -127,6 +119,8 @@ impl Searcher {
             }
 
             if score >= beta {
+                evaluation_type = EvaluationType::LowerBound;
+
                 break;
             }
 

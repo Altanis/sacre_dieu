@@ -1,6 +1,6 @@
 fastchess/fastchess \
-  -engine name=Aspect cmd=releases/v7_fail_soft \
-  -engine name=BlueGarbageBall cmd=releases/v6_tuned_psqt \
+  -engine name=Aspect cmd=releases/v8_draw_score \
+  -engine name=BlueGarbageBall cmd=releases/v7_fail_soft \
   -games 2 -rounds 50000 \
   -pgnout "sprt/pgnout.txt" \
   -sprt elo0=0 elo1=10 alpha=0.05 beta=0.05 \
