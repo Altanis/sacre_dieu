@@ -46,6 +46,11 @@ impl Searcher {
         }
     }
 
+    /// Whether or not the search has been cancelled.
+    pub fn search_cancelled(&self) -> bool {
+        self.stop_signal.load(Ordering::Relaxed) || self.timer.elapsed() > self.time_limit
+    }
+
     /// Searches for a move with a time constraint.
     pub fn search_timed(&mut self, board: &Board) -> i32 {
         self.timer = std::time::Instant::now();
@@ -53,7 +58,7 @@ impl Searcher {
 
         self.max_depth = 0;
         for _ in 0..=MAX_DEPTH {
-            if self.timer.elapsed() > self.time_limit || self.stop_signal.load(Ordering::Relaxed) {
+            if self.search_cancelled() {
                 break;
             }
 
@@ -85,6 +90,19 @@ impl Searcher {
         if depth == 0 {
             return self.quiescence_search(board, alpha, beta);
         }
+        
+        // if ply > 0 {
+        //     if let Some(entry) = self.transposition_table.get(board.zobrist_key) {
+        //         if entry.depth >= depth {    
+        //             match entry.evaluation_type {
+        //                 EvaluationType::Exact => return entry.evaluation,
+        //                 EvaluationType::UpperBound if entry.evaluation <= alpha => return entry.evaluation,
+        //                 EvaluationType::LowerBound if entry.evaluation >= beta => return entry.evaluation,
+        //                 _ => {}
+        //             }
+        //         }
+        //     }
+        // }
 
         let mut moves = ArrayVec::new();
         board.generate_moves(&mut moves, false);
@@ -120,11 +138,10 @@ impl Searcher {
 
             if score >= beta {
                 evaluation_type = EvaluationType::LowerBound;
-
                 break;
             }
 
-            if self.stop_signal.load(Ordering::Relaxed) || self.timer.elapsed() > self.time_limit {
+            if self.search_cancelled() {
                 self.finished = false;
                 return best_score;
             }
@@ -137,6 +154,8 @@ impl Searcher {
                 return 0; // Stalemate.
             }
         }
+
+        self.transposition_table.store(board.zobrist_key, TTEntry { zobrist_key: board.zobrist_key, depth, evaluation: best_score, evaluation_type, best_move });
 
         best_score
     }

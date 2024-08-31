@@ -2,7 +2,7 @@ use arrayvec::ArrayVec;
 
 use crate::engine::search::Searcher;
 
-use super::{board::{Bitboard, Board}, consts::{BLACK_PAWN_MASK, MAX_LEGAL_MOVES, WHITE_PAWN_MASK}, piece::{PieceColor, PieceType, Tile}};
+use super::{board::{Bitboard, Board}, consts::{BEST_EVAL, BLACK_PAWN_MASK, MAX_LEGAL_MOVES, WHITE_PAWN_MASK}, piece::{PieceColor, PieceType, Tile}};
 
 /// A structure representing a move.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -97,9 +97,15 @@ impl Move {
 /// Orders moves based off guesses.
 pub fn order_moves(board: &Board, searcher: &Searcher, moves: &mut ArrayVec<Move, MAX_LEGAL_MOVES>) {
     let mut scores: ArrayVec<i32, MAX_LEGAL_MOVES> = ArrayVec::new();
+    let hash_move = searcher.transposition_table.get(board.zobrist_key).and_then(|entry| entry.best_move);
 
     for piece_move in moves.iter() {
         let mut score: i32 = 0;
+
+        if hash_move == Some(*piece_move) {
+            scores.push(BEST_EVAL);
+            continue;
+        }
 
         let initial_piece = board.board[piece_move.initial.index()]
             .clone()

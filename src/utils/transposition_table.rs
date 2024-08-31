@@ -1,6 +1,7 @@
 use super::piece_move::Move;
 
 /// An entry into the transposition table.
+#[derive(Debug, Clone, PartialEq)]
 pub struct TTEntry {
     /// The hashed board state.
     pub zobrist_key: u64,
@@ -15,6 +16,7 @@ pub struct TTEntry {
 }
 
 /// The type of evaluation from a search.
+#[derive(Debug, Clone, PartialEq)]
 pub enum EvaluationType {
     /// An exact evaluation from `eval::evaluate_board(...)`.
     Exact,
@@ -40,7 +42,7 @@ impl TranspositionTable {
     /// since the indexer does not use a modulo.
     pub fn new(buckets: usize) -> Self {
         Self {
-            table: Vec::with_capacity(buckets),
+            table: std::iter::repeat_with(|| None).take(buckets).collect(),
             buckets
         }
     }
@@ -56,6 +58,7 @@ impl TranspositionTable {
 
     /// Resizes the transposition table.
     pub fn resize(&mut self, buckets: usize) {
+        self.buckets = buckets;
         self.table.resize_with(buckets, || None);
     }
 
@@ -71,6 +74,7 @@ impl TranspositionTable {
     /// Indexes the internal table given a Zobrist hash.
     pub fn index(&self, key: u64) -> usize {
         ((key as u128).wrapping_mul(self.buckets as u128) >> 64) as usize
+        // key as usize % self.buckets
     }
 
     /// Gets an entry from the transposition table.
@@ -90,6 +94,41 @@ impl TranspositionTable {
 
     /// Clears out the transposition table.
     pub fn clear(&mut self) {
-        self.table.clear();
+        self.table.iter_mut().for_each(|entry| *entry = None);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_transposition_table() {
+        let mut table = TranspositionTable::new(1);
+
+        let entry = TTEntry {
+            zobrist_key: 0x1234567890ABCDEF,
+            depth: 5,
+            evaluation: 100,
+            evaluation_type: EvaluationType::Exact,
+            best_move: None
+        };
+
+        let index = table.store(entry.zobrist_key, entry.clone());
+        assert_eq!(table.get(entry.zobrist_key), Some(&entry));
+
+        let entry = TTEntry {
+            zobrist_key: 0x1234567890ABCDEF,
+            depth: 6,
+            evaluation: 200,
+            evaluation_type: EvaluationType::Exact,
+            best_move: None
+        };
+
+        let index = table.store(entry.zobrist_key, entry.clone());
+        assert_eq!(table.get(entry.zobrist_key), Some(&entry));
+
+        table.clear();
+        assert_eq!(table.get(0x1234567890ABCDEF), None);
     }
 }

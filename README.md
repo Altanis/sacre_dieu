@@ -11,8 +11,10 @@ A UCI compliant chess engine which may or may not be French.
 - `v6_tuned_psqt` v5 + tuned psqt values
 - `v7_fail_soft`: v6, but search/qsearch are fail soft now
 - `v8_draw_score`: v7, but fixing how draw scores work
+- `v9_tt_move_ordering`: v8 + tt move ordering
+- `v10_pvs`: v9 + principal variation search
 
-todo: fix draw checks, TT table search, TT table qsearch, TT table move ordering, fix mate scores
+todo: PVS, TT table search, TT table qsearch, TT table move ordering, fix mate scores
 
 ## Features
 - [x] FEN Parser
@@ -34,8 +36,11 @@ todo: fix draw checks, TT table search, TT table qsearch, TT table move ordering
     - [x] Piece Square Tables
     - [ ] Tuned HCE
 - [x] Quiescence Search (Captures + Promotions)
+- [ ] Principal Variation Search
 - [ ] Transposition Table
-- [ ] PVS
+    - [x] Data Structrue
+    - [x] Move Ordering
+    - [ ] Cutoffs 
 - [ ] Killer Moves
 - [ ] Passed Pawn Detection
 - [ ] Reverse Futility Pruning
