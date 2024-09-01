@@ -2,7 +2,7 @@ use arrayvec::ArrayVec;
 
 use crate::engine::search::Searcher;
 
-use super::{board::{Bitboard, Board}, consts::{BEST_EVAL, BLACK_PAWN_MASK, MAX_LEGAL_MOVES, WHITE_PAWN_MASK}, piece::{PieceColor, PieceType, Tile}};
+use super::{board::{Bitboard, Board}, consts::{BEST_EVAL, BLACK_PAWN_MASK, MAX_LEGAL_MOVES, WHITE_PAWN_MASK, WORST_EVAL}, piece::{PieceColor, PieceType, Tile}};
 
 /// A structure representing a move.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -116,16 +116,12 @@ pub fn order_moves(board: &Board, searcher: &Searcher, moves: &mut ArrayVec<Move
             score = 100 * piece.piece_type.get_value() as i32 - initial_piece.piece_type.get_value() as i32;
         }
 
-        // A super naive SEE: I will revisit this later.
-        // Penalizes movement onto a tile controlled by a pawn.
-        let enemy_pawns = board.colored_piece(PieceType::Pawn, !board.side_to_move);
-        let pawn_attacks = Bitboard::new(match !board.side_to_move {
-            PieceColor::White => BLACK_PAWN_MASK[piece_move.end.index()].1,
-            PieceColor::Black => WHITE_PAWN_MASK[piece_move.end.index()].1,
-        }) & enemy_pawns;
+        // History Heuristic
+        score += searcher.history_table[board.side_to_move as usize][piece_move.initial.index()][piece_move.end.index()];
 
-        if pawn_attacks != Bitboard::ZERO {
-            score -= initial_piece.piece_type.get_value() as i32;
+        // Order quiets before noisy moves.
+        if piece_move.flags != MoveFlags::EnPassant && board.board[piece_move.end.index()].is_none() {
+            score -= 100_000_000;
         }
 
         scores.push(score);

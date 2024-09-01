@@ -170,7 +170,7 @@ pub fn handle_board(receiver: Receiver<UCICommands>, stop_signal: Arc<AtomicBool
                 } else if depth != -1 {
                     // Search up to a specified depth.
                     searcher.max_depth = depth as usize;
-                    eval = searcher.search(&board, searcher.max_depth, 0, alpha, beta);
+                    eval = searcher.search::<true>(&board, searcher.max_depth, 0, alpha, beta);
                 } else {
                     // Iterative deepening until `stop` is sent.
                     searcher.time_limit = Duration::MAX;
@@ -205,6 +205,8 @@ pub fn handle_board(receiver: Receiver<UCICommands>, stop_signal: Arc<AtomicBool
                 } else {
                     panic!("null move");
                 }
+
+                searcher.history_table = [[[0; 64]; 64]; 2];
             },
             UCICommands::PrintBoard => {
                 dbg!(&board);

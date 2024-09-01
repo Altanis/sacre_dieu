@@ -1,6 +1,6 @@
 # Sacre Dieu
 
-A UCI compliant chess engine which may or may not be French.
+A UCI compliant chess engine that may or may not be French.
 
 ## Releases
 - `v1_basic`: negamax + a/b pruning + iterative deepening, only
@@ -12,7 +12,8 @@ A UCI compliant chess engine which may or may not be French.
 - `v7_fail_soft`: v6, but search/qsearch are fail soft now
 - `v8_draw_score`: v7, but fixing how draw scores work
 - `v9_tt_move_ordering`: v8 + tt move ordering
-- `v10_pvs`: v9 + principal variation search
+- `v10_history_heuristic`: v9 + history table heuristic
+- `v11_pvs`: v10 + principal variation search
 
 todo: PVS, TT table search, TT table qsearch, TT table move ordering, fix mate scores
 
@@ -30,6 +31,8 @@ todo: PVS, TT table search, TT table qsearch, TT table move ordering, fix mate s
 - [ ] Move Ordering Heuristics
     - [x] MVV-LVA
     - [x] SEE (naive)
+    - [x] Hash Move Ordering
+    - [x] History Heuristic
     - [ ] SEE (strong)
 - [ ] HCE
     - [x] Material Evaluation
@@ -38,16 +41,14 @@ todo: PVS, TT table search, TT table qsearch, TT table move ordering, fix mate s
 - [x] Quiescence Search (Captures + Promotions)
 - [ ] Principal Variation Search
 - [ ] Transposition Table
-    - [x] Data Structrue
-    - [x] Move Ordering
+    - [x] Data Structure
     - [ ] Cutoffs 
 - [ ] Killer Moves
 - [ ] Passed Pawn Detection
-- [ ] Reverse Futility Pruning
+- [ ] Futility Pruning
 - [ ] Delta Pruning
 - [ ] Late Move Reduction
 - [ ] Check Extensions
-- [ ] Hash Move Ordering
 - [ ] History Heuristic
 - [ ] Razoring
 - [ ] Aspiration Tables

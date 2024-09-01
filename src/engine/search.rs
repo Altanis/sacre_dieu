@@ -2,7 +2,7 @@ use std::{sync::{atomic::{AtomicBool, Ordering}, Arc}, time::{Duration, Instant}
 
 use arrayvec::ArrayVec;
 
-use crate::utils::{board::Board, consts::{BEST_EVAL, MAX_DEPTH, SHALLOWEST_PROVEN_LOSS, WORST_EVAL}, piece_move::{order_moves, Move}, transposition_table::{EvaluationType, TTEntry, TranspositionTable}};
+use crate::utils::{board::Board, consts::{BEST_EVAL, MAX_DEPTH, SHALLOWEST_PROVEN_LOSS, WORST_EVAL}, piece_move::{order_moves, Move, MoveFlags}, transposition_table::{EvaluationType, TTEntry, TranspositionTable}};
 use super::eval;
 
 pub struct Searcher {
@@ -10,6 +10,8 @@ pub struct Searcher {
     pub past_boards: Vec<u64>,
     /// A table of previous searches and their evaluations.
     pub transposition_table: TranspositionTable,
+    /// A history table, storing beta cutoff bonuses.
+    pub history_table: [[[i32; 64]; 64]; 2],
     
     /// The time constraint of the search.
     pub time_limit: Duration,
@@ -34,6 +36,7 @@ impl Searcher {
         Searcher {
             past_boards: Vec::new(),
             transposition_table: TranspositionTable::from_mb(16),
+            history_table: [[[0; 64]; 64]; 2],
 
             time_limit,
             timer: Instant::now(),
@@ -66,7 +69,7 @@ impl Searcher {
             self.finished = true;
             self.max_depth += 1;
 
-            let latest_eval = self.search(board, self.max_depth, 0, WORST_EVAL, BEST_EVAL);
+            let latest_eval = self.search::<true>(board, self.max_depth, 0, WORST_EVAL, BEST_EVAL);
 
             if self.finished {
                 eval = latest_eval;
@@ -82,44 +85,46 @@ impl Searcher {
     }
 
     /// Searches for a move with the highest evaluation with a fixed depth and a hard time limit.
-    pub fn search(&mut self, board: &Board, depth: usize, ply: usize, mut alpha: i32, beta: i32) -> i32 {
-        if ply > 0 && (board.half_move_counter >= 100 || self.past_boards.iter().filter(|p| **p == board.zobrist_key).count() == 2) {
+    pub fn search<const PV: bool>(&mut self, old_board: &Board, depth: usize, ply: usize, mut alpha: i32, beta: i32) -> i32 {
+        if ply > 0 && (old_board.half_move_counter >= 100 || self.past_boards.iter().filter(|p| **p == old_board.zobrist_key).count() == 2) {
             return 0; // 50 move repetition or threefold repetition.
         }
 
         if depth == 0 {
-            return self.quiescence_search(board, alpha, beta);
+            return self.quiescence_search(old_board, alpha, beta);
         }
-        
-        // if ply > 0 {
-        //     if let Some(entry) = self.transposition_table.get(board.zobrist_key) {
-        //         if entry.depth >= depth {    
-        //             match entry.evaluation_type {
-        //                 EvaluationType::Exact => return entry.evaluation,
-        //                 EvaluationType::UpperBound if entry.evaluation <= alpha => return entry.evaluation,
-        //                 EvaluationType::LowerBound if entry.evaluation >= beta => return entry.evaluation,
-        //                 _ => {}
-        //             }
-        //         }
-        //     }
-        // }
 
         let mut moves = ArrayVec::new();
-        board.generate_moves(&mut moves, false);
-        order_moves(board, self, &mut moves);
+        old_board.generate_moves(&mut moves, false);
+        order_moves(old_board, self, &mut moves);
 
-        let mut has_moves = false;
+        let mut num_moves = 0;
 
         let (mut best_score, mut best_move) = (WORST_EVAL, None);
         let mut evaluation_type = EvaluationType::UpperBound;
 
-        for piece_move in moves.iter() {
-            let Some(board) = board.make_move(piece_move, false) else { continue; };
+        for (piece_move_idx, piece_move) in moves.iter().enumerate() {
+            let Some(board) = old_board.make_move(piece_move, false) else { continue; };
             
             self.nodes += 1;
-            has_moves = true;
+            num_moves += 1;
 
-            let score = -self.search(&board, depth - 1, ply + 1, -beta, -alpha);
+            // let mut score = 0;
+
+            // if num_moves == 1 {
+            //     // Full Window Search
+            //     score = -self.search::<true>(&board, depth - 1, ply + 1, -beta, -alpha);
+            // } else {
+            //     // Null Window Search
+            //     score = -self.search::<false>(&board, depth - 1, ply + 1, -alpha - 1, -alpha);
+
+            //     if score > alpha && score < beta {
+            //         // Null Window Search failed, resort to Full Window Search
+            //         score = -self.search::<true>(&board, depth - 1, ply + 1, -beta, -alpha);
+            //     }
+            // }
+
+            let score = -self.search::<true>(&board, depth - 1, ply + 1, -beta, -alpha);
 
             if score > best_score {
                 best_score = score;
@@ -137,6 +142,18 @@ impl Searcher {
             }
 
             if score >= beta {
+                // History Heuristic
+                if piece_move.flags != MoveFlags::EnPassant && old_board.board[piece_move.end.index()].is_none() {
+                    self.history_table[old_board.side_to_move as usize][piece_move.initial.index()][piece_move.end.index()] += (depth * depth) as i32;
+
+                    for old_move_idx in 0..piece_move_idx {
+                        let old_move = moves[old_move_idx];
+                        if old_move.flags != MoveFlags::EnPassant && old_board.board[old_move.end.index()].is_none() {
+                            self.history_table[old_board.side_to_move as usize][old_move.initial.index()][old_move.end.index()] -= (depth * depth) as i32;
+                        }
+                    }
+                }
+
                 evaluation_type = EvaluationType::LowerBound;
                 break;
             }
@@ -147,15 +164,15 @@ impl Searcher {
             }
         }
 
-        if !has_moves {
-            if board.in_check(board.side_to_move) {
+        if num_moves == 0 {
+            if old_board.in_check(old_board.side_to_move) {
                 return SHALLOWEST_PROVEN_LOSS + ply as i32; // Checkmate.
             } else {
                 return 0; // Stalemate.
             }
         }
 
-        self.transposition_table.store(board.zobrist_key, TTEntry { zobrist_key: board.zobrist_key, depth, evaluation: best_score, evaluation_type, best_move });
+        self.transposition_table.store(old_board.zobrist_key, TTEntry { zobrist_key: old_board.zobrist_key, depth, evaluation: best_score, evaluation_type, best_move });
 
         best_score
     }
