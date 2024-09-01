@@ -116,11 +116,12 @@ pub fn order_moves(board: &Board, searcher: &Searcher, moves: &mut ArrayVec<Move
             score = 100 * piece.piece_type.get_value() as i32 - initial_piece.piece_type.get_value() as i32;
         }
 
-        // History Heuristic
-        score += searcher.history_table[board.side_to_move as usize][piece_move.initial.index()][piece_move.end.index()];
+        let is_quiet = piece_move.flags != MoveFlags::EnPassant && board.board[piece_move.end.index()].is_none();
+        if is_quiet {
+            // History Heuristic
+            score += searcher.history_table[board.side_to_move as usize][piece_move.initial.index()][piece_move.end.index()];
 
-        // Order quiets before noisy moves.
-        if piece_move.flags != MoveFlags::EnPassant && board.board[piece_move.end.index()].is_none() {
+            // Order quiets before noisy moves.
             score -= 100_000_000;
         }
 

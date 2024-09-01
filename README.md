@@ -1,5 +1,9 @@
 # Sacre Dieu
 
+<a href=".">
+    <img src="./assets/icon.png" alt="sacredieu logo" height="200" width="200" />
+</a>
+
 A UCI compliant chess engine that may or may not be French.
 
 ## Releases
@@ -13,7 +17,7 @@ A UCI compliant chess engine that may or may not be French.
 - `v8_draw_score`: v7, but fixing how draw scores work
 - `v9_tt_move_ordering`: v8 + tt move ordering
 - `v10_history_heuristic`: v9 + history table heuristic
-- `v11_pvs`: v10 + principal variation search
+- `v11_fixed_history_heuristic`: v10 + history table only for quiets
 
 todo: PVS, TT table search, TT table qsearch, TT table move ordering, fix mate scores
 
@@ -30,9 +34,9 @@ todo: PVS, TT table search, TT table qsearch, TT table move ordering, fix mate s
 - [x] Mate Distance Pruning
 - [ ] Move Ordering Heuristics
     - [x] MVV-LVA
-    - [x] SEE (naive)
     - [x] Hash Move Ordering
     - [x] History Heuristic
+    - [ ] Killer Moves
     - [ ] SEE (strong)
 - [ ] HCE
     - [x] Material Evaluation
@@ -43,13 +47,11 @@ todo: PVS, TT table search, TT table qsearch, TT table move ordering, fix mate s
 - [ ] Transposition Table
     - [x] Data Structure
     - [ ] Cutoffs 
-- [ ] Killer Moves
 - [ ] Passed Pawn Detection
 - [ ] Futility Pruning
 - [ ] Delta Pruning
 - [ ] Late Move Reduction
 - [ ] Check Extensions
-- [ ] History Heuristic
 - [ ] Razoring
 - [ ] Aspiration Tables
 - [ ] NNUE
