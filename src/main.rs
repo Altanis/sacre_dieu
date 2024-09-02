@@ -71,7 +71,7 @@ fn main() {
     std::env::set_var("RUST_BACKTRACE", "1");
 
     let args: Vec<String> = std::env::args().collect();
-    if args[1] == "bench" {
+    if args.get(1) == Some(&"bench".to_string()) {
         let mut searcher = Searcher::new(Duration::MAX, 5, Arc::new(AtomicBool::new(false)));
         let mut npsa = vec![];
         let mut nodes = 0;

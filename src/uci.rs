@@ -1,5 +1,5 @@
 use std::{sync::{atomic::{AtomicBool, Ordering}, mpsc::{Receiver, Sender}, Arc}, time::{Duration, Instant}};
-use crate::{engine::search::Searcher, utils::{board::Board, consts::{BEST_EVAL, DEEPEST_PROVEN_LOSS, DEEPEST_PROVEN_WIN, SHALLOWEST_PROVEN_LOSS, SHALLOWEST_PROVEN_WIN, WORST_EVAL}, piece::PieceColor, piece_move::{Move, MoveFlags}}};
+use crate::{engine::search::Searcher, utils::{board::Board, consts::{BEST_EVAL, DEEPEST_PROVEN_LOSS, DEEPEST_PROVEN_WIN, SHALLOWEST_PROVEN_LOSS, SHALLOWEST_PROVEN_WIN, WORST_EVAL}, piece::PieceColor, piece_move::{Move, MoveFlags, MoveSorter}}};
 
 #[derive(Debug)]
 pub enum UCICommands {
@@ -117,6 +117,7 @@ pub fn handle_board(receiver: Receiver<UCICommands>, stop_signal: Arc<AtomicBool
             UCICommands::NewGame => {
                 searcher.transposition_table.clear();
                 searcher.past_boards.clear();
+                searcher.move_sorter = MoveSorter::new();
             },
             UCICommands::SetPosition(pos) => board = Board::new(pos.as_str()),
             UCICommands::ForceMove(moves) => {
@@ -205,8 +206,6 @@ pub fn handle_board(receiver: Receiver<UCICommands>, stop_signal: Arc<AtomicBool
                 } else {
                     panic!("null move");
                 }
-
-                searcher.history_table = [[[0; 64]; 64]; 2];
             },
             UCICommands::PrintBoard => {
                 dbg!(&board);

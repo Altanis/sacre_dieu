@@ -35,7 +35,7 @@ todo: PVS, TT table search, TT table qsearch, TT table move ordering, fix mate s
 - [ ] Move Ordering Heuristics
     - [x] MVV-LVA
     - [x] Hash Move Ordering
-    - [x] History Heuristic
+    - [x] History Heuristic with Gravity
     - [ ] Killer Moves
     - [ ] SEE (strong)
 - [ ] HCE

@@ -94,44 +94,80 @@ impl Move {
     }
 }
 
-/// Orders moves based off guesses.
-pub fn order_moves(board: &Board, searcher: &Searcher, moves: &mut ArrayVec<Move, MAX_LEGAL_MOVES>) {
-    let mut scores: ArrayVec<i32, MAX_LEGAL_MOVES> = ArrayVec::new();
-    let hash_move = searcher.transposition_table.get(board.zobrist_key).and_then(|entry| entry.best_move);
+/// A struct which sorts necessary move ordering
+/// score constants and tables of vital move ordering
+/// information.
+pub struct MoveSorter {
+    /// A history table which tracks move scores for quiet beta cutoffs.
+    pub history_table: [[[i32; 64]; 64]; 2]
+}
 
-    for piece_move in moves.iter() {
-        let mut score: i32 = 0;
-
-        if hash_move == Some(*piece_move) {
-            scores.push(BEST_EVAL);
-            continue;
+impl MoveSorter {
+    /// Creates a new move sorter.
+    pub fn new() -> Self {
+        Self {
+            history_table: [[[0; 64]; 64]; 2]
         }
-
-        let initial_piece = board.board[piece_move.initial.index()]
-            .clone()
-            .expect("expected piece on initial square");
-
-        // MVV-LVA
-        if let Some(piece) = board.board[piece_move.end.index()].as_ref() {
-            score = 100 * piece.piece_type.get_value() as i32 - initial_piece.piece_type.get_value() as i32;
-        }
-
-        let is_quiet = piece_move.flags != MoveFlags::EnPassant && board.board[piece_move.end.index()].is_none();
-        if is_quiet {
-            // History Heuristic
-            score += searcher.history_table[board.side_to_move as usize][piece_move.initial.index()][piece_move.end.index()];
-
-            // Order quiets before noisy moves.
-            score -= 100_000_000;
-        }
-
-        scores.push(score);
     }
 
-    let mut combined: ArrayVec<(_, _), MAX_LEGAL_MOVES> = scores.iter().copied().zip(moves.iter().copied()).collect();
-    combined.sort_by_key(|&(score, _)| std::cmp::Reverse(score));
-
-    for (i, (_, piece_move)) in combined.into_iter().enumerate() {
-        moves[i] = piece_move;
+    /// Gets a move score from history.
+    pub fn get_history(&self, board: &Board, piece_move: Move) -> i32 {
+        self.history_table[board.side_to_move as usize][piece_move.initial.index()][piece_move.end.index()]
     }
+
+    /// Updates a move score in the history table.
+    pub fn update_history(&mut self, board: &Board, piece_move: Move, bonus: i32) {
+        let clamped_bonus = bonus.clamp(-16384, 16384);
+        let old_value = self.get_history(board, piece_move);
+
+        self.history_table[board.side_to_move as usize][piece_move.initial.index()][piece_move.end.index()]
+            = clamped_bonus - old_value * clamped_bonus.abs() / 16384;
+    }
+
+    /// Orders moves based off guesses.
+    pub fn order_moves(&self, board: &Board, searcher: &Searcher, moves: &mut ArrayVec<Move, MAX_LEGAL_MOVES>) {
+        let mut scores: ArrayVec<i32, MAX_LEGAL_MOVES> = ArrayVec::new();
+        let hash_move = searcher.transposition_table.get(board.zobrist_key).and_then(|entry| entry.best_move);
+
+        for piece_move in moves.iter() {
+            let mut score: i32 = 0;
+
+            if hash_move == Some(*piece_move) {
+                scores.push(BEST_EVAL);
+                continue;
+            }
+
+            let initial_piece = board.board[piece_move.initial.index()]
+                .clone()
+                .expect("expected piece on initial square");
+
+            // MVV-LVA
+            if let Some(piece) = board.board[piece_move.end.index()].as_ref() {
+                score = 100 * piece.piece_type.get_value() as i32 - initial_piece.piece_type.get_value() as i32;
+            }
+
+            let is_quiet = piece_move.flags != MoveFlags::EnPassant && board.board[piece_move.end.index()].is_none();
+            if is_quiet {
+                // History Heuristic
+                score += self.get_history(board, *piece_move);
+
+                // Order quiets before noisy moves.
+                score -= 100_000_000;
+            }
+
+            scores.push(score);
+        }
+
+        let mut combined: ArrayVec<(_, _), MAX_LEGAL_MOVES> = scores.iter().copied().zip(moves.iter().copied()).collect();
+        combined.sort_by_key(|&(score, _)| std::cmp::Reverse(score));
+
+        for (i, (_, piece_move)) in combined.into_iter().enumerate() {
+            moves[i] = piece_move;
+        }
+    }
+}
+
+impl MoveSorter {
+    // Any constants which should be associated with
+    // the sorter, such as SEE constants.
 }

@@ -2,7 +2,7 @@ use std::{sync::{atomic::{AtomicBool, Ordering}, Arc}, time::{Duration, Instant}
 
 use arrayvec::ArrayVec;
 
-use crate::utils::{board::Board, consts::{BEST_EVAL, MAX_DEPTH, SHALLOWEST_PROVEN_LOSS, WORST_EVAL}, piece_move::{order_moves, Move, MoveFlags}, transposition_table::{EvaluationType, TTEntry, TranspositionTable}};
+use crate::utils::{board::Board, consts::{BEST_EVAL, MAX_DEPTH, SHALLOWEST_PROVEN_LOSS, WORST_EVAL}, piece_move::{Move, MoveFlags, MoveSorter}, transposition_table::{EvaluationType, TTEntry, TranspositionTable}};
 use super::eval;
 
 pub struct Searcher {
@@ -10,8 +10,8 @@ pub struct Searcher {
     pub past_boards: Vec<u64>,
     /// A table of previous searches and their evaluations.
     pub transposition_table: TranspositionTable,
-    /// A history table, storing beta cutoff bonuses.
-    pub history_table: [[[i32; 64]; 64]; 2],
+    /// A struct which sorts moves.
+    pub move_sorter: MoveSorter,
     
     /// The time constraint of the search.
     pub time_limit: Duration,
@@ -36,7 +36,7 @@ impl Searcher {
         Searcher {
             past_boards: Vec::new(),
             transposition_table: TranspositionTable::from_mb(16),
-            history_table: [[[0; 64]; 64]; 2],
+            move_sorter: MoveSorter::new(),
 
             time_limit,
             timer: Instant::now(),
@@ -96,7 +96,7 @@ impl Searcher {
 
         let mut moves = ArrayVec::new();
         old_board.generate_moves(&mut moves, false);
-        order_moves(old_board, self, &mut moves);
+        self.move_sorter.order_moves(old_board, self, &mut moves);
 
         let mut num_moves = 0;
 
@@ -126,6 +126,11 @@ impl Searcher {
 
             let score = -self.search::<true>(&board, depth - 1, ply + 1, -beta, -alpha);
 
+            if self.search_cancelled() {
+                self.finished = false;
+                return best_score;
+            }
+
             if score > best_score {
                 best_score = score;
             }
@@ -144,23 +149,19 @@ impl Searcher {
             if score >= beta {
                 // History Heuristic
                 if piece_move.flags != MoveFlags::EnPassant && old_board.board[piece_move.end.index()].is_none() {
-                    self.history_table[old_board.side_to_move as usize][piece_move.initial.index()][piece_move.end.index()] += (depth * depth) as i32;
+                    let bonus = (depth * depth) as i32;
+                    self.move_sorter.update_history(old_board, *piece_move, bonus);
 
                     for old_move_idx in 0..piece_move_idx {
                         let old_move = moves[old_move_idx];
                         if old_move.flags != MoveFlags::EnPassant && old_board.board[old_move.end.index()].is_none() {
-                            self.history_table[old_board.side_to_move as usize][old_move.initial.index()][old_move.end.index()] -= (depth * depth) as i32;
+                            self.move_sorter.update_history(old_board, old_move, -bonus);
                         }
                     }
                 }
 
                 evaluation_type = EvaluationType::LowerBound;
                 break;
-            }
-
-            if self.search_cancelled() {
-                self.finished = false;
-                return best_score;
             }
         }
 
@@ -187,7 +188,7 @@ impl Searcher {
 
         let mut moves = ArrayVec::new();
         board.generate_moves(&mut moves, true);
-        order_moves(board, self, &mut moves);
+        self.move_sorter.order_moves(board, self, &mut moves);
 
         let mut best_score = eval;
 
