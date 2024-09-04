@@ -86,17 +86,19 @@ impl Searcher {
 
     /// Searches for a move with the highest evaluation with a fixed depth and a hard time limit.
     pub fn search<const PV: bool>(&mut self, old_board: &Board, depth: usize, ply: usize, mut alpha: i32, beta: i32) -> i32 {
+        self.move_sorter.update_killer(None, ply + 1);
+        
         if ply > 0 && (old_board.half_move_counter >= 100 || self.past_boards.iter().filter(|p| **p == old_board.zobrist_key).count() == 2) {
             return 0; // 50 move repetition or threefold repetition.
         }
 
         if depth == 0 {
-            return self.quiescence_search(old_board, alpha, beta);
+            return self.quiescence_search(old_board, ply, alpha, beta);
         }
 
         let mut moves = ArrayVec::new();
         old_board.generate_moves(&mut moves, false);
-        self.move_sorter.order_moves(old_board, self, &mut moves);
+        self.move_sorter.order_moves(old_board, self, &mut moves, ply, false);
 
         let mut num_moves = 0;
 
@@ -147,8 +149,9 @@ impl Searcher {
             }
 
             if score >= beta {
-                // History Heuristic
-                if piece_move.flags != MoveFlags::EnPassant && old_board.board[piece_move.end.index()].is_none() {
+                let is_quiet = piece_move.flags != MoveFlags::EnPassant && old_board.board[piece_move.end.index()].is_none();
+                if is_quiet {
+                    // History Heuristic
                     let bonus = (depth * depth) as i32;
                     self.move_sorter.update_history(old_board, *piece_move, bonus);
 
@@ -158,6 +161,9 @@ impl Searcher {
                             self.move_sorter.update_history(old_board, old_move, -bonus);
                         }
                     }
+
+                    // Killer Move Heuristic
+                    self.move_sorter.update_killer(Some(*piece_move), ply);
                 }
 
                 evaluation_type = EvaluationType::LowerBound;
@@ -178,7 +184,7 @@ impl Searcher {
         best_score
     }
 
-    pub fn quiescence_search(&mut self, board: &Board, mut alpha: i32, beta: i32) -> i32 {
+    pub fn quiescence_search(&mut self, board: &Board, ply: usize, mut alpha: i32, beta: i32) -> i32 {
         let eval = eval::evaluate_board(board);
         if eval >= beta {
             return eval;
@@ -188,7 +194,7 @@ impl Searcher {
 
         let mut moves = ArrayVec::new();
         board.generate_moves(&mut moves, true);
-        self.move_sorter.order_moves(board, self, &mut moves);
+        self.move_sorter.order_moves(board, self, &mut moves, ply, true);
 
         let mut best_score = eval;
 
@@ -196,7 +202,7 @@ impl Searcher {
             let Some(board) = board.make_move(piece_move, false) else { continue; };
             self.nodes += 1;
 
-            let score = -self.quiescence_search(&board, -beta, -alpha);
+            let score = -self.quiescence_search(&board, ply, -beta, -alpha);
 
             if score > best_score {
                 best_score = score;

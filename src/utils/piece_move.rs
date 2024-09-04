@@ -2,7 +2,7 @@ use arrayvec::ArrayVec;
 
 use crate::engine::search::Searcher;
 
-use super::{board::{Bitboard, Board}, consts::{BEST_EVAL, BLACK_PAWN_MASK, MAX_LEGAL_MOVES, WHITE_PAWN_MASK, WORST_EVAL}, piece::{PieceColor, PieceType, Tile}};
+use super::{board::{Bitboard, Board}, consts::{BEST_EVAL, BLACK_PAWN_MASK, MAX_DEPTH, MAX_LEGAL_MOVES, WHITE_PAWN_MASK, WORST_EVAL}, piece::{PieceColor, PieceType, Tile}};
 
 /// A structure representing a move.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -99,14 +99,17 @@ impl Move {
 /// information.
 pub struct MoveSorter {
     /// A history table which tracks move scores for quiet beta cutoffs.
-    pub history_table: [[[i32; 64]; 64]; 2]
+    pub history_table: [[[i32; 64]; 64]; 2],
+    /// A killer table which tracks quiet moves and their plies if they fail high.
+    pub killer_table: [Option<Move>; MAX_DEPTH as usize + 4]
 }
 
 impl MoveSorter {
     /// Creates a new move sorter.
     pub fn new() -> Self {
         Self {
-            history_table: [[[0; 64]; 64]; 2]
+            history_table: [[[0; 64]; 64]; 2],
+            killer_table: [None; MAX_DEPTH as usize + 4]
         }
     }
 
@@ -124,38 +127,23 @@ impl MoveSorter {
             = clamped_bonus - old_value * clamped_bonus.abs() / 16384;
     }
 
+    /// Gets a move from the killer table.
+    pub fn get_killer(&self, ply: usize) -> Option<Move> {
+        self.killer_table[ply]
+    }
+
+    /// Updates a move in the killer table.
+    pub fn update_killer(&mut self, killer_move: Option<Move>, ply: usize) {
+        self.killer_table[ply] = killer_move;
+    }
+
     /// Orders moves based off guesses.
-    pub fn order_moves(&self, board: &Board, searcher: &Searcher, moves: &mut ArrayVec<Move, MAX_LEGAL_MOVES>) {
+    pub fn order_moves(&self, board: &Board, searcher: &Searcher, moves: &mut ArrayVec<Move, MAX_LEGAL_MOVES>, ply: usize, qsearch: bool) {
         let mut scores: ArrayVec<i32, MAX_LEGAL_MOVES> = ArrayVec::new();
         let hash_move = searcher.transposition_table.get(board.zobrist_key).and_then(|entry| entry.best_move);
 
         for piece_move in moves.iter() {
-            let mut score: i32 = 0;
-
-            if hash_move == Some(*piece_move) {
-                scores.push(BEST_EVAL);
-                continue;
-            }
-
-            let initial_piece = board.board[piece_move.initial.index()]
-                .clone()
-                .expect("expected piece on initial square");
-
-            // MVV-LVA
-            if let Some(piece) = board.board[piece_move.end.index()].as_ref() {
-                score = 100 * piece.piece_type.get_value() as i32 - initial_piece.piece_type.get_value() as i32;
-            }
-
-            let is_quiet = piece_move.flags != MoveFlags::EnPassant && board.board[piece_move.end.index()].is_none();
-            if is_quiet {
-                // History Heuristic
-                score += self.get_history(board, *piece_move);
-
-                // Order quiets before noisy moves.
-                score -= 100_000_000;
-            }
-
-            scores.push(score);
+            scores.push(self.score_move(board, *piece_move, ply, hash_move, qsearch));
         }
 
         let mut combined: ArrayVec<(_, _), MAX_LEGAL_MOVES> = scores.iter().copied().zip(moves.iter().copied()).collect();
@@ -165,9 +153,45 @@ impl MoveSorter {
             moves[i] = piece_move;
         }
     }
+
+    /// Scores a move.
+    pub fn score_move(&self, board: &Board, piece_move: Move, ply: usize, hash_move: Option<Move>, qsearch: bool) -> i32 {
+        if hash_move == Some(piece_move) {
+            // Hash Move
+            return Self::HASH_MOVE;
+        }
+
+        let initial_piece = board.board[piece_move.initial.index()]
+            .clone()
+            .expect("expected piece on initial square");
+
+        // Capture Move
+        if let Some(piece) = board.board[piece_move.end.index()].as_ref() { 
+            // MVV-LVA
+            let mvv_lva = 100 * piece.piece_type.get_value() as i32 - initial_piece.piece_type.get_value() as i32;
+            return Self::CAPTURE_MOVE + mvv_lva;
+        }
+
+        let is_quiet = !qsearch && piece_move.flags != MoveFlags::EnPassant && board.board[piece_move.end.index()].is_none();
+        if is_quiet {
+            // History and Killer Heuristics
+            let killer_move = self.get_killer(ply);
+            let history_score = self.get_history(board, piece_move);
+
+            if killer_move == Some(piece_move) {
+                return Self::KILLER_MOVE + history_score;
+            } else {
+                return Self::QUIET_MOVE + history_score;
+            }
+        }
+
+        0
+    }
 }
 
 impl MoveSorter {
-    // Any constants which should be associated with
-    // the sorter, such as SEE constants.
+    const HASH_MOVE: i32 = 100_000_000;
+    const CAPTURE_MOVE: i32 = 0;
+    const KILLER_MOVE: i32 = -100_000;
+    const QUIET_MOVE: i32 = -100_000_000;
 }

@@ -18,8 +18,10 @@ A UCI compliant chess engine that may or may not be French.
 - `v9_tt_move_ordering`: v8 + tt move ordering
 - `v10_history_heuristic`: v9 + history table heuristic
 - `v11_fixed_history_heuristic`: v10 + history table only for quiets
+- `v12_killer_moves`: v11 + killer move heuristic
+- `v13_see`: v12 + static exchange eval
 
-todo: PVS, TT table search, TT table qsearch, TT table move ordering, fix mate scores
+todo: killers, SEE, PVS, TT table search, TT table qsearch, TT table move ordering, fix mate scores
 
 ## Features
 - [x] FEN Parser
