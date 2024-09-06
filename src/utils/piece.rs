@@ -1,5 +1,7 @@
 use std::ops::Not;
 
+use arrayvec::ArrayVec;
+
 use super::{board::{Bitboard, Board}, consts::{get_bishop_mask, get_rook_mask, BISHOP_MAGICS, BISHOP_VALUE, BLACK_PAWN_MASK, KING_MASKS, KING_VALUE, KNIGHT_MASKS, KNIGHT_VALUE, MAX_LEGAL_MOVES, PAWN_VALUE, QUEEN_VALUE, ROOK_MAGICS, ROOK_VALUE, WHITE_PAWN_MASK}, piece_move::{Move, MoveFlags}, zobrist::ZOBRIST_PIECE_KEYS};
 
 /// An enum representing the type of chess piece.
@@ -180,23 +182,21 @@ impl Piece {
     }
 
     /// Generates a list of moves for the piece.
-    pub fn generate_moves(&self, board: &Board, tile_start: Tile, qsearch: bool) -> Vec<Move> {
+    pub fn generate_moves(&self, board: &Board, tile_start: Tile, qsearch: bool, moves: &mut ArrayVec<Move, MAX_LEGAL_MOVES>) {
         match self.piece_type {
-            PieceType::Pawn => Piece::generate_pawn_moves(board, tile_start, self.piece_color, qsearch),
-            PieceType::Knight => Piece::generate_knight_moves(board, tile_start, self.piece_color, qsearch),
-            PieceType::Bishop => Piece::generate_bishop_moves(board, tile_start, self.piece_color, qsearch),
-            PieceType::Rook => Piece::generate_rook_moves(board, tile_start, self.piece_color, qsearch),
-            PieceType::Queen => Piece::generate_bishop_moves(board, tile_start, self.piece_color, qsearch)
-                .into_iter()
-                .chain(Piece::generate_rook_moves(board, tile_start, self.piece_color, qsearch))
-                .collect(),
-            PieceType::King => Piece::generate_king_moves(board, tile_start, self.piece_color, qsearch)
-        }
+            PieceType::Pawn => Piece::generate_pawn_moves(board, tile_start, self.piece_color, qsearch, moves),
+            PieceType::Knight => Piece::generate_knight_moves(board, tile_start, self.piece_color, qsearch, moves),
+            PieceType::Bishop => Piece::generate_bishop_moves(board, tile_start, self.piece_color, qsearch, moves),
+            PieceType::Rook => Piece::generate_rook_moves(board, tile_start, self.piece_color, qsearch, moves),
+            PieceType::Queen => {
+                Piece::generate_bishop_moves(board, tile_start, self.piece_color, qsearch, moves);
+                Piece::generate_rook_moves(board, tile_start, self.piece_color, qsearch, moves);
+            },
+            PieceType::King => Piece::generate_king_moves(board, tile_start, self.piece_color, qsearch, moves)
+        };
     }
 
-    fn generate_pawn_moves(board: &Board, tile_start: Tile, piece_color: PieceColor, qsearch: bool) -> Vec<Move> {
-        let mut moves = Vec::with_capacity(MAX_LEGAL_MOVES);
-
+    fn generate_pawn_moves(board: &Board, tile_start: Tile, piece_color: PieceColor, qsearch: bool, moves: &mut ArrayVec<Move, MAX_LEGAL_MOVES>) {
         let direction = if piece_color == PieceColor::White { 1 } else { -1 };
 
         // Get movement and capture masks.
@@ -250,31 +250,26 @@ impl Piece {
 
             if Some(tile_end) == en_passant {
                 moves.push(Move::new(tile_start, tile_end, MoveFlags::EnPassant));
-                continue;
             } else if tile_end.rank == (if piece_color == PieceColor::White { 7 } else { 0 }) {
                 moves.push(Move::new(tile_start, tile_end, MoveFlags::KnightPromotion));
                 moves.push(Move::new(tile_start, tile_end, MoveFlags::BishopPromotion));
                 moves.push(Move::new(tile_start, tile_end, MoveFlags::RookPromotion));
                 moves.push(Move::new(tile_start, tile_end, MoveFlags::QueenPromotion));
-            }
-
-            if qsearch && board.board[tile_end.index()].is_none() {
-                continue;
-            }
-
-            if Some(tile_end) == double_push_tile {
-                moves.push(Move::new(tile_start, tile_end, MoveFlags::DoublePush));
             } else {
-                moves.push(Move::new(tile_start, tile_end, MoveFlags::None));
+                if qsearch && board.board[tile_end.index()].is_none() {
+                    continue;
+                }
+    
+                if Some(tile_end) == double_push_tile {
+                    moves.push(Move::new(tile_start, tile_end, MoveFlags::DoublePush));
+                } else {
+                    moves.push(Move::new(tile_start, tile_end, MoveFlags::None));
+                }
             }
         }
-
-        moves
     }
 
-    fn generate_knight_moves(board: &Board, tile_start: Tile, piece_color: PieceColor, qsearch: bool) -> Vec<Move> {
-        let mut moves = Vec::with_capacity(MAX_LEGAL_MOVES);
-        
+    fn generate_knight_moves(board: &Board, tile_start: Tile, piece_color: PieceColor, qsearch: bool, moves: &mut ArrayVec<Move, MAX_LEGAL_MOVES>) {
         let mut mask = Bitboard::new(KNIGHT_MASKS[tile_start.index()]);
         mask &= !board.color(piece_color); // Avoid capturing friendly pieces.
 
@@ -287,13 +282,9 @@ impl Piece {
 
             moves.push(Move::new(tile_start, tile_end, MoveFlags::None));
         }
-
-        moves
     }
 
-    fn generate_rook_moves(board: &Board, tile_start: Tile, piece_color: PieceColor, qsearch: bool) -> Vec<Move> {
-        let mut moves = Vec::with_capacity(MAX_LEGAL_MOVES);
-
+    fn generate_rook_moves(board: &Board, tile_start: Tile, piece_color: PieceColor, qsearch: bool, moves: &mut ArrayVec<Move, MAX_LEGAL_MOVES>) {
         // Retreive the mask through the magic indexing system.
         let magic = &ROOK_MAGICS[tile_start.index()];
 
@@ -309,13 +300,9 @@ impl Piece {
 
             moves.push(Move::new(tile_start, tile_end, MoveFlags::None));
         }
-
-        moves
     }
 
-    fn generate_bishop_moves(board: &Board, tile_start: Tile, piece_color: PieceColor, qsearch: bool) -> Vec<Move> {
-        let mut moves = Vec::with_capacity(MAX_LEGAL_MOVES);
-
+    fn generate_bishop_moves(board: &Board, tile_start: Tile, piece_color: PieceColor, qsearch: bool, moves: &mut ArrayVec<Move, MAX_LEGAL_MOVES>) {
         // Retreive the mask through the magic indexing system.
         let magic = &BISHOP_MAGICS[tile_start.index()];
 
@@ -331,13 +318,9 @@ impl Piece {
 
             moves.push(Move::new(tile_start, tile_end, MoveFlags::None));
         }
-
-        moves
     }
 
-    fn generate_king_moves(board: &Board, tile_start: Tile, piece_color: PieceColor, qsearch: bool) -> Vec<Move> {
-        let mut moves = Vec::with_capacity(MAX_LEGAL_MOVES);
-        
+    fn generate_king_moves(board: &Board, tile_start: Tile, piece_color: PieceColor, qsearch: bool, moves: &mut ArrayVec<Move, MAX_LEGAL_MOVES>) {
         let mut mask = Bitboard::new(KING_MASKS[tile_start.index()]);
         mask &= !board.color(piece_color); // Avoid capturing friendly pieces.
 
@@ -419,8 +402,6 @@ impl Piece {
 
             moves.push(Move::new(tile_start, tile_end, MoveFlags::None));
         }
-
-        moves
     }
 }
 

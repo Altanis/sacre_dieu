@@ -1,4 +1,6 @@
 use std::{sync::{atomic::{AtomicBool, Ordering}, mpsc::{Receiver, Sender}, Arc}, time::{Duration, Instant}};
+use arrayvec::ArrayVec;
+
 use crate::{engine::search::Searcher, utils::{board::Board, consts::{BEST_EVAL, DEEPEST_PROVEN_LOSS, DEEPEST_PROVEN_WIN, SHALLOWEST_PROVEN_LOSS, SHALLOWEST_PROVEN_WIN, WORST_EVAL}, piece::PieceColor, piece_move::{Move, MoveFlags, MoveSorter}}};
 
 #[derive(Debug)]
@@ -127,7 +129,9 @@ pub fn handle_board(receiver: Receiver<UCICommands>, stop_signal: Arc<AtomicBool
                     if piece_move.flags == MoveFlags::None {
                         let piece = board.board[piece_move.initial.index()].as_ref().expect("no piece on initial move index");
                     
-                        let moves = piece.generate_moves(&board, piece_move.initial, false);
+                        let mut moves = ArrayVec::new();
+                        piece.generate_moves(&board, piece_move.initial, false, &mut moves);
+
                         let real_move = moves
                             .iter()
                             .find(|mv| mv.end.index() == piece_move.end.index())

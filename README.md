@@ -16,12 +16,10 @@ A UCI compliant chess engine that may or may not be French.
 - `v7_fail_soft`: v6, but search/qsearch are fail soft now
 - `v8_draw_score`: v7, but fixing how draw scores work
 - `v9_tt_move_ordering`: v8 + tt move ordering
-- `v10_history_heuristic`: v9 + history table heuristic
-- `v11_fixed_history_heuristic`: v10 + history table only for quiets
-- `v12_killer_moves`: v11 + killer move heuristic
-- `v13_see`: v12 + static exchange eval
+- `v10_tt_cutoff`: v9 + tt cutoffs
+- `v11_fixed_tt_move`: v10 + fixed tt hash move probing
 
-todo: killers, SEE, PVS, TT table search, TT table qsearch, TT table move ordering, fix mate scores
+<!-- todo: history (gravity), killers, SEE, PVS, TT table search, TT table qsearch, TT table move ordering, fix mate scores -->
 
 ## Features
 - [x] FEN Parser
@@ -37,7 +35,7 @@ todo: killers, SEE, PVS, TT table search, TT table qsearch, TT table move orderi
 - [ ] Move Ordering Heuristics
     - [x] MVV-LVA
     - [x] Hash Move Ordering
-    - [x] History Heuristic with Gravity
+    - [ ] History Heuristic with Gravity
     - [ ] Killer Moves
     - [ ] SEE (strong)
 - [ ] HCE
@@ -54,6 +52,7 @@ todo: killers, SEE, PVS, TT table search, TT table qsearch, TT table move orderi
 - [ ] Delta Pruning
 - [ ] Late Move Reduction
 - [ ] Check Extensions
+- [ ] Singular Extensions
 - [ ] Razoring
 - [ ] Aspiration Tables
 - [ ] NNUE

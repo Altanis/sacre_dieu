@@ -291,7 +291,7 @@ impl Board {
             let tile = occupied.pop_lsb();
             let piece = self.board[tile.index()].as_ref().expect("expected piece on tile in generate_moves");
 
-            moves.extend(piece.generate_moves(self, tile, qsearch));
+            piece.generate_moves(self, tile, qsearch, moves);
         }
 
         // for square in 0..64 {
@@ -524,7 +524,7 @@ impl Board {
         
         let mut num_moves = 0;
         for piece_move in moves.iter() {
-            if let Some(board) = self.make_move(piece_move, true) {
+            if let Some(board) = self.make_move(piece_move, true) { 
                 num_moves += board.perft(depth - 1);
             }
         }
@@ -544,7 +544,7 @@ impl Board {
     //     self.generate_moves(&mut moves, false);
     //     self.generate_moves(&mut qsearch_moves, true);
 
-    //     let vec: Vec<&Move> = moves.iter().filter(|x| self.board[x.end.index()].is_some() || x.flags == MoveFlags::EnPassant).collect();
+    //     let vec: Vec<&Move> = moves.iter().filter(|x| self.board[x.end.index()].is_some() || x.flags == MoveFlags::EnPassant || x.flags.is_promotion()).collect();
     //     let qsearch_vec: Vec<&Move> = qsearch_moves.iter().collect();
 
     //     assert_eq!(vec, qsearch_vec);
@@ -559,9 +559,9 @@ impl Board {
     //     for piece_move in moves.iter() {
     //         let cur_code = piece_move.to_uci();
 
-    //         // let dbg = last_moves.len() == 3 && last_moves[0] == "f1f2" && last_moves[1] == "b2a1n" && last_moves[2] == "d1c2";
     //         // let dbg = last_moves.len() == 3 && last_moves[0] == "f1f2" && last_moves[1] == "b2a1r" && last_moves[2] == "d1a1";
     //         // let dbg = last_moves.len() == 4 && last_moves[0] == "h1g2" && last_moves[1] == "a1b2" && last_moves[2] == "g2f1" && last_moves[3] == "b2a1";
+    //         let dbg = last_moves.len() == 3 && last_moves[0] == "a1b1" && last_moves[1] == "h3g2" && last_moves[2] == "b1a1";
 
     //         if let Some(board) = self.make_move(piece_move, false) {    
     //             let mut moves = last_moves.clone();
@@ -569,9 +569,9 @@ impl Board {
     
     //             let new_nodes = board.debug_perft(depth - 1, initial_depth, &mut moves).0;
     
-    //             // if dbg {
-    //                 // println!("{} - {}", cur_code, new_nodes);
-    //             // }
+    //             if dbg {
+    //                 println!("{} - {}", cur_code, new_nodes);
+    //             }
     
     //             num_positions += new_nodes;
     //         }

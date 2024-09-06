@@ -124,7 +124,7 @@ impl MoveSorter {
         let old_value = self.get_history(board, piece_move);
 
         self.history_table[board.side_to_move as usize][piece_move.initial.index()][piece_move.end.index()]
-            = clamped_bonus - old_value * clamped_bonus.abs() / 16384;
+            += clamped_bonus - old_value * clamped_bonus.abs() / 16384;
     }
 
     /// Gets a move from the killer table.
@@ -140,7 +140,13 @@ impl MoveSorter {
     /// Orders moves based off guesses.
     pub fn order_moves(&self, board: &Board, searcher: &Searcher, moves: &mut ArrayVec<Move, MAX_LEGAL_MOVES>, ply: usize, qsearch: bool) {
         let mut scores: ArrayVec<i32, MAX_LEGAL_MOVES> = ArrayVec::new();
-        let hash_move = searcher.transposition_table.get(board.zobrist_key).and_then(|entry| entry.best_move);
+        let hash_move = searcher.transposition_table.get(board.zobrist_key).and_then(|entry| {
+            if entry.zobrist_key == board.zobrist_key { 
+                entry.best_move
+            } else {
+                None
+            }
+        });
 
         for piece_move in moves.iter() {
             scores.push(self.score_move(board, *piece_move, ply, hash_move, qsearch));
@@ -172,18 +178,18 @@ impl MoveSorter {
             return Self::CAPTURE_MOVE + mvv_lva;
         }
 
-        let is_quiet = !qsearch && piece_move.flags != MoveFlags::EnPassant && board.board[piece_move.end.index()].is_none();
-        if is_quiet {
-            // History and Killer Heuristics
-            let killer_move = self.get_killer(ply);
-            let history_score = self.get_history(board, piece_move);
+        // let is_quiet = !qsearch && piece_move.flags != MoveFlags::EnPassant && board.board[piece_move.end.index()].is_none();
+        // if is_quiet {
+        //     // History and Killer Heuristics
+        //     // let killer_move = self.get_killer(ply);
+        //     let history_score = self.get_history(board, piece_move);
 
-            if killer_move == Some(piece_move) {
-                return Self::KILLER_MOVE + history_score;
-            } else {
-                return Self::QUIET_MOVE + history_score;
-            }
-        }
+        //     // if killer_move == Some(piece_move) {
+        //         // return Self::KILLER_MOVE + history_score;
+        //     // } else {
+        //         return Self::QUIET_MOVE + history_score;
+        //     // }
+        // }
 
         0
     }

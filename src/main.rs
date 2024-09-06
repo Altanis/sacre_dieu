@@ -6,6 +6,7 @@
 #![allow(unused_assignments)]
 
 use std::{sync::{atomic::AtomicBool, mpsc::channel, Arc}, time::Duration};
+use colored::Colorize;
 
 use engine::search::Searcher;
 use utils::{board::Board, consts::{BEST_EVAL, WORST_EVAL}};
