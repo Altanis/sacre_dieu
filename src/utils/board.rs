@@ -2,7 +2,7 @@ use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, N
 
 use arrayvec::ArrayVec;
 
-use super::{consts::{MagicEntry, PIECE_INDICES, get_piece_type, MAX_LEGAL_MOVES}, piece::*, piece_move::{Move, MoveFlags}, zobrist::{generate_zobrist_hash, ZOBRIST_CASTLING_KEYS, ZOBRIST_EN_PASSANT_KEYS, ZOBRIST_SIDE_TO_MOVE}};
+use super::{consts::{get_piece_type, MagicEntry, MAX_LEGAL_MOVES, PIECE_INDICES}, piece::*, piece_move::{Move, MoveArray, MoveFlags}, zobrist::{generate_zobrist_hash, ZOBRIST_CASTLING_KEYS, ZOBRIST_EN_PASSANT_KEYS, ZOBRIST_SIDE_TO_MOVE}};
 use colored::Colorize;
 
 /// A type representing an array of bitboards for tracking piece/color state.
@@ -285,7 +285,7 @@ impl Board {
     }
         
     /// Generates all legal moves for a given piece.
-    pub fn generate_moves(&self, moves: &mut ArrayVec<Move, MAX_LEGAL_MOVES>, qsearch: bool) {
+    pub fn generate_moves(&self, moves: &mut MoveArray, qsearch: bool) {
         let mut occupied = self.color(self.side_to_move);
         while occupied != Bitboard::ZERO {
             let tile = occupied.pop_lsb();

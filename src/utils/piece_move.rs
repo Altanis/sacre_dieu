@@ -4,6 +4,8 @@ use crate::engine::search::Searcher;
 
 use super::{board::{Bitboard, Board}, consts::{BEST_EVAL, BLACK_PAWN_MASK, MAX_DEPTH, MAX_LEGAL_MOVES, WHITE_PAWN_MASK, WORST_EVAL}, piece::{PieceColor, PieceType, Tile}};
 
+pub type MoveArray = ArrayVec<Move, MAX_LEGAL_MOVES>;
+
 /// A structure representing a move.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Move {
@@ -138,7 +140,7 @@ impl MoveSorter {
     }
 
     /// Orders moves based off guesses.
-    pub fn order_moves(&self, board: &Board, searcher: &Searcher, moves: &mut ArrayVec<Move, MAX_LEGAL_MOVES>, ply: usize, qsearch: bool) {
+    pub fn order_moves(&self, board: &Board, searcher: &Searcher, moves: &mut MoveArray, ply: usize, qsearch: bool) {
         let mut scores: ArrayVec<i32, MAX_LEGAL_MOVES> = ArrayVec::new();
         let hash_move = searcher.transposition_table.get(board.zobrist_key).and_then(|entry| {
             if entry.zobrist_key == board.zobrist_key { 
@@ -178,18 +180,18 @@ impl MoveSorter {
             return Self::CAPTURE_MOVE + mvv_lva;
         }
 
-        // let is_quiet = !qsearch && piece_move.flags != MoveFlags::EnPassant && board.board[piece_move.end.index()].is_none();
-        // if is_quiet {
-        //     // History and Killer Heuristics
-        //     // let killer_move = self.get_killer(ply);
-        //     let history_score = self.get_history(board, piece_move);
+        let is_quiet = !qsearch && piece_move.flags != MoveFlags::EnPassant && board.board[piece_move.end.index()].is_none();
+        if is_quiet {
+            // History Heuristic
+            // let killer_move = self.get_killer(ply);
+            let history_score = self.get_history(board, piece_move);
 
-        //     // if killer_move == Some(piece_move) {
-        //         // return Self::KILLER_MOVE + history_score;
-        //     // } else {
-        //         return Self::QUIET_MOVE + history_score;
-        //     // }
-        // }
+            // if killer_move == Some(piece_move) {
+                // return Self::KILLER_MOVE + history_score;
+            // } else {
+                return Self::QUIET_MOVE + history_score;
+            // }
+        }
 
         0
     }
