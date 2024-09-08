@@ -5,4 +5,7 @@ ifeq ($(OS),Windows_NT)
 endif
 
 $(EXE):
-	cargo rustc --release -- -C target-cpu=native --emit link=$(EXE)
+	cargo +nightly rustc --release -- -C target-cpu=native --emit link=$(EXE)
+
+clean:
+	rm -f $(EXE)
