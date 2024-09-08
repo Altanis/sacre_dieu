@@ -105,28 +105,28 @@
     "stats": {
         "Aspect": {
             "BlueGarbageBall": {
-                "wins": 103,
-                "losses": 124,
-                "draws": 153,
-                "penta_WW": 12,
+                "wins": 107,
+                "losses": 126,
+                "draws": 155,
+                "penta_WW": 13,
                 "penta_WD": 44,
-                "penta_WL": 35,
-                "penta_DD": 31,
+                "penta_WL": 37,
+                "penta_DD": 32,
                 "penta_LD": 47,
                 "penta_LL": 21
             }
         },
         "BlueGarbageBall": {
             "Aspect": {
-                "wins": 250,
-                "losses": 268,
-                "draws": 300,
-                "penta_WW": 41,
-                "penta_WD": 78,
+                "wins": 253,
+                "losses": 272,
+                "draws": 303,
+                "penta_WW": 42,
+                "penta_WD": 79,
                 "penta_WL": 90,
                 "penta_DD": 62,
-                "penta_LD": 98,
-                "penta_LL": 40
+                "penta_LD": 100,
+                "penta_LL": 41
             }
         }
     }
