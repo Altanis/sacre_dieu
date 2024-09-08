@@ -31,12 +31,12 @@ pub const SHALLOWEST_PROVEN_WIN: i32 = 100000;
 pub const BEST_EVAL: i32 = i32::MAX;
 
 // Values of each piece, in centipawns.
-pub const PAWN_VALUE: u32 = 100;
-pub const KNIGHT_VALUE: u32 = 300;
-pub const BISHOP_VALUE: u32 = 320;
-pub const ROOK_VALUE: u32 = 500;
-pub const QUEEN_VALUE: u32 = 900;
-pub const KING_VALUE: u32 = 0;
+pub const PAWN_VALUE: i32 = 100;
+pub const KNIGHT_VALUE: i32 = 300;
+pub const BISHOP_VALUE: i32 = 300;
+pub const ROOK_VALUE: i32 = 500;
+pub const QUEEN_VALUE: i32 = 900;
+pub const KING_VALUE: i32 = 0;
 
 // PSQT table, stolen from Pesto.
 // NOTE: These PSQT tables assume A8 = 0.

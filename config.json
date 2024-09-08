@@ -47,7 +47,7 @@
     "site": "?",
     "config_name": "",
     "output": 0,
-    "seed": 9699177849044726627,
+    "seed": 8630435972071769699,
     "variant": 0,
     "ratinginterval": 10,
     "scoreinterval": 1,
@@ -64,7 +64,7 @@
         {
             "name": "Aspect",
             "dir": "",
-            "cmd": "releases/v12_history_heuristic",
+            "cmd": "releases/v13_see",
             "args": "",
             "options": [],
             "limit": {
@@ -84,7 +84,7 @@
         {
             "name": "BlueGarbageBall",
             "dir": "",
-            "cmd": "releases/v11_fixed_tt_move",
+            "cmd": "releases/v12_history_heuristic",
             "args": "",
             "options": [],
             "limit": {
@@ -105,28 +105,28 @@
     "stats": {
         "Aspect": {
             "BlueGarbageBall": {
-                "wins": 81,
-                "losses": 56,
-                "draws": 81,
-                "penta_WW": 14,
-                "penta_WD": 30,
-                "penta_WL": 23,
-                "penta_DD": 17,
-                "penta_LD": 17,
-                "penta_LL": 8
+                "wins": 103,
+                "losses": 124,
+                "draws": 153,
+                "penta_WW": 12,
+                "penta_WD": 44,
+                "penta_WL": 35,
+                "penta_DD": 31,
+                "penta_LD": 47,
+                "penta_LL": 21
             }
         },
         "BlueGarbageBall": {
             "Aspect": {
-                "wins": 120,
-                "losses": 186,
-                "draws": 170,
-                "penta_WW": 15,
-                "penta_WD": 40,
-                "penta_WL": 50,
-                "penta_DD": 30,
-                "penta_LD": 70,
-                "penta_LL": 33
+                "wins": 250,
+                "losses": 268,
+                "draws": 300,
+                "penta_WW": 41,
+                "penta_WD": 78,
+                "penta_WL": 90,
+                "penta_DD": 62,
+                "penta_LD": 98,
+                "penta_LL": 40
             }
         }
     }

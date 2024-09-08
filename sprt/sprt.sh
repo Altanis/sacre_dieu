@@ -1,6 +1,6 @@
 fastchess/fastchess \
-  -engine name=Aspect cmd=releases/v12_history_heuristic \
-  -engine name=BlueGarbageBall cmd=releases/v11_fixed_tt_move \
+  -engine name=Aspect cmd=releases/v13_see \
+  -engine name=BlueGarbageBall cmd=releases/v12_history_heuristic \
   -games 2 -rounds 50000 \
   -pgnout "sprt/pgnout.txt" \
   -sprt elo0=0 elo1=10 alpha=0.05 beta=0.05 \

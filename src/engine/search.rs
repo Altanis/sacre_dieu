@@ -86,12 +86,14 @@ impl Searcher {
 
     /// Searches for a move with the highest evaluation with a fixed depth and a hard time limit.
     pub fn search<const PV: bool>(&mut self, old_board: &Board, depth: usize, ply: usize, mut alpha: i32, beta: i32) -> i32 {
+        self.move_sorter.update_killer(None, ply + 2);
+
         if ply > 0 && (old_board.half_move_counter >= 100 || self.past_boards.iter().filter(|p| **p == old_board.zobrist_key).count() == 2) {
             return 0; // 50 move repetition or threefold repetition.
         }
 
         if depth == 0 {
-            return self.quiescence_search(old_board, ply + 1, alpha, beta);
+            return self.quiescence_search(old_board, ply, alpha, beta);
         }
 
         if ply > 0 {
@@ -168,10 +170,12 @@ impl Searcher {
                     self.move_sorter.update_history(old_board, *piece_move, bonus);
 
                     for old_move in quiet_moves.iter() {
-                        if old_move.flags != MoveFlags::EnPassant && old_board.board[piece_move.end.index()].is_none() {
-                            self.move_sorter.update_history(old_board, *old_move, -bonus);
-                        }
+                        self.move_sorter.update_history(old_board, *old_move, -bonus);
                     }
+
+                    // Killer Heuristic
+                    // dbg!(piece_move.to_uci(), ply);
+                    self.move_sorter.update_killer(Some(*piece_move), ply);
                 }
 
                 evaluation_type = EvaluationType::LowerBound;

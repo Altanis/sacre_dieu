@@ -32,11 +32,11 @@ pub fn count_material(board: &Board, side: PieceColor) -> u32 {
     let rook_bitboard = board.colored_piece(PieceType::Rook, side);
     let queen_bitboard = board.colored_piece(PieceType::Queen, side);
 
-    let pawn_material = pawn_bitboard.board.count_ones() * consts::PAWN_VALUE;
-    let knight_material = knight_bitboard.board.count_ones() * consts::KNIGHT_VALUE;
-    let bishop_material = bishop_bitboard.board.count_ones() * consts::BISHOP_VALUE;
-    let rook_material = rook_bitboard.board.count_ones() * consts::ROOK_VALUE;
-    let queen_material = queen_bitboard.board.count_ones() * consts::QUEEN_VALUE;
+    let pawn_material = pawn_bitboard.board.count_ones() * consts::PAWN_VALUE as u32;
+    let knight_material = knight_bitboard.board.count_ones() * consts::KNIGHT_VALUE as u32;
+    let bishop_material = bishop_bitboard.board.count_ones() * consts::BISHOP_VALUE as u32;
+    let rook_material = rook_bitboard.board.count_ones() * consts::ROOK_VALUE as u32;
+    let queen_material = queen_bitboard.board.count_ones() * consts::QUEEN_VALUE as u32;
 
     pawn_material + knight_material + bishop_material + rook_material + queen_material
 }

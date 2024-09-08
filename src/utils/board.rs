@@ -222,16 +222,16 @@ impl Board {
         let (mut rank, mut file) = (7_u8, 0_u8);
 
         let tokens: Vec<&str> = fen.split(' ').collect();
-        if tokens.len() < 6 {
-            panic!("invalid fen: 6 tokens should be present {}", fen);
+        if tokens.len() < 4 {
+            panic!("invalid fen: at least 4 tokens should be present {}", fen);
         }
 
         let pieces = tokens[0];
         let side = tokens[1];
         let castle_rights = tokens[2];
         let en_passant = tokens[3];
-        let half_move_counter = tokens[4];
-        let _ = tokens[5]; // full move counter
+        let half_move_counter = tokens.get(4).unwrap_or(&"0");
+        let _ = tokens.get(5).unwrap_or(&"0"); // full move counter
 
         for char in pieces.chars() {
             if let Some(advance) = char.to_digit(10) {

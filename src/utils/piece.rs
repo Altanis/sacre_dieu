@@ -5,7 +5,7 @@ use arrayvec::ArrayVec;
 use super::{board::{Bitboard, Board}, consts::{get_bishop_mask, get_rook_mask, BISHOP_MAGICS, BISHOP_VALUE, BLACK_PAWN_MASK, KING_MASKS, KING_VALUE, KNIGHT_MASKS, KNIGHT_VALUE, MAX_LEGAL_MOVES, PAWN_VALUE, QUEEN_VALUE, ROOK_MAGICS, ROOK_VALUE, WHITE_PAWN_MASK}, piece_move::{Move, MoveArray, MoveFlags}, zobrist::ZOBRIST_PIECE_KEYS};
 
 /// An enum representing the type of chess piece.
-#[derive(Debug, Clone, PartialEq, strum_macros::EnumCount, strum_macros::EnumIter)]
+#[derive(Debug, Clone, Copy, PartialEq, strum_macros::EnumCount, strum_macros::EnumIter)]
 pub enum PieceType {
     Pawn,
     Knight,
@@ -29,7 +29,7 @@ impl PieceType {
     }
 
     /// Converts the piece type to a weighted value.
-    pub fn get_value(&self) -> u32 {
+    pub fn get_value(&self) -> i32 {
         match self {
             PieceType::Pawn => PAWN_VALUE,
             PieceType::Knight => KNIGHT_VALUE,
@@ -134,8 +134,25 @@ impl Tile {
         code.len() == 2 && code.chars().nth(1).and_then(|c| c.to_digit(10)).is_some()
     }
 
+    /// The attackers of a tile, irrespective of color.
+    pub fn attackers(&self, board: &Board, occupied: Bitboard) -> Bitboard {
+        let pawns = board.piece(PieceType::Pawn);
+        let knights = board.piece(PieceType::Knight);
+        let bishops = board.piece(PieceType::Bishop) | board.piece(PieceType::Queen);
+        let rooks = board.piece(PieceType::Rook) | board.piece(PieceType::Queen);
+        let kings = board.piece(PieceType::King);
+
+        let pawn_attacks = Bitboard::new(BLACK_PAWN_MASK[self.index()].1 | WHITE_PAWN_MASK[self.index()].1) & pawns;
+        let knight_attacks = Bitboard::new(KNIGHT_MASKS[self.index()]) & knights;
+        let bishop_attacks = get_bishop_mask(Board::generate_magic_index(&BISHOP_MAGICS[self.index()], &occupied)) & bishops;
+        let rook_attacks = get_rook_mask(Board::generate_magic_index(&ROOK_MAGICS[self.index()], &occupied)) & rooks;
+        let king_attacks = Bitboard::new(KING_MASKS[self.index()]) & kings;
+
+        pawn_attacks | knight_attacks | bishop_attacks | rook_attacks | king_attacks
+    }
+
     /// The attackers for the tile of a specific color.
-    pub fn attackers(&self, board: &Board, enemy_side: PieceColor) -> Bitboard {
+    pub fn colored_attackers(&self, board: &Board, enemy_side: PieceColor) -> Bitboard {
         let enemy_pawns = board.colored_piece(PieceType::Pawn, enemy_side);
         let enemy_knights = board.colored_piece(PieceType::Knight, enemy_side);
         let enemy_bishops = board.colored_piece(PieceType::Bishop, enemy_side) | board.colored_piece(PieceType::Queen, enemy_side);
@@ -156,7 +173,7 @@ impl Tile {
 
     /// Whether or not the position is under attack from a specific side.
     pub fn is_under_attack(&self, board: &Board, enemy_side: PieceColor) -> bool {
-        self.attackers(board, enemy_side) != Bitboard::ZERO
+        self.colored_attackers(board, enemy_side) != Bitboard::ZERO
     }
 }
 
