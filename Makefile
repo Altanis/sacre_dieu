@@ -1,8 +1,8 @@
 EXE = sacre_dieu
 
 ifeq ($(OS),Windows_NT)
-    override EXE := $(EXE).exe
+	override EXE := $(EXE).exe
 endif
 
-all:
-    cargo rustc --release -- -C target-cpu=native --emit link=$(EXE)
+$(EXE):
+	cargo rustc --release -- -C target-cpu=native --emit link=$(EXE)
