@@ -136,13 +136,15 @@ impl Tile {
 
     /// The attackers of a tile, irrespective of color.
     pub fn attackers(&self, board: &Board, occupied: Bitboard) -> Bitboard {
-        let pawns = board.piece(PieceType::Pawn);
+        let white_pawns = board.colored_piece(PieceType::Pawn, PieceColor::White);
+        let black_pawns = board.colored_piece(PieceType::Pawn, PieceColor::Black);
+
         let knights = board.piece(PieceType::Knight);
         let bishops = board.piece(PieceType::Bishop) | board.piece(PieceType::Queen);
         let rooks = board.piece(PieceType::Rook) | board.piece(PieceType::Queen);
         let kings = board.piece(PieceType::King);
 
-        let pawn_attacks = Bitboard::new(BLACK_PAWN_MASK[self.index()].1 | WHITE_PAWN_MASK[self.index()].1) & pawns;
+        let pawn_attacks = (Bitboard::new(BLACK_PAWN_MASK[self.index()].1) & white_pawns) | (Bitboard::new(WHITE_PAWN_MASK[self.index()].1) & black_pawns);
         let knight_attacks = Bitboard::new(KNIGHT_MASKS[self.index()]) & knights;
         let bishop_attacks = get_bishop_mask(Board::generate_magic_index(&BISHOP_MAGICS[self.index()], &occupied)) & bishops;
         let rook_attacks = get_rook_mask(Board::generate_magic_index(&ROOK_MAGICS[self.index()], &occupied)) & rooks;

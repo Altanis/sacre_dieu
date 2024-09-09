@@ -9,4 +9,4 @@ fastchess/fastchess \
   -randomseed \
   -concurrency 6 \
   -ratinginterval 10 \
-  # -config file="config.json" \
+  -config file="config.json" \

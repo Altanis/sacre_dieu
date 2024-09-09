@@ -47,7 +47,7 @@
     "site": "?",
     "config_name": "",
     "output": 0,
-    "seed": 8630435972071769699,
+    "seed": 9200749055400671510,
     "variant": 0,
     "ratinginterval": 10,
     "scoreinterval": 1,
@@ -69,9 +69,9 @@
             "options": [],
             "limit": {
                 "tc": {
-                    "increment": 80,
+                    "increment": 50,
                     "fixed_time": 0,
-                    "time": 8000,
+                    "time": 5000,
                     "moves": 0,
                     "timemargin": 0
                 },
@@ -89,9 +89,9 @@
             "options": [],
             "limit": {
                 "tc": {
-                    "increment": 80,
+                    "increment": 50,
                     "fixed_time": 0,
-                    "time": 8000,
+                    "time": 5000,
                     "moves": 0,
                     "timemargin": 0
                 },
@@ -105,28 +105,28 @@
     "stats": {
         "Aspect": {
             "BlueGarbageBall": {
-                "wins": 107,
-                "losses": 126,
-                "draws": 155,
-                "penta_WW": 13,
-                "penta_WD": 44,
-                "penta_WL": 37,
-                "penta_DD": 32,
-                "penta_LD": 47,
-                "penta_LL": 21
+                "wins": 218,
+                "losses": 199,
+                "draws": 319,
+                "penta_WW": 24,
+                "penta_WD": 91,
+                "penta_WL": 79,
+                "penta_DD": 72,
+                "penta_LD": 84,
+                "penta_LL": 18
             }
         },
         "BlueGarbageBall": {
             "Aspect": {
-                "wins": 253,
-                "losses": 272,
-                "draws": 303,
-                "penta_WW": 42,
-                "penta_WD": 79,
-                "penta_WL": 90,
-                "penta_DD": 62,
-                "penta_LD": 100,
-                "penta_LL": 41
+                "wins": 488,
+                "losses": 569,
+                "draws": 625,
+                "penta_WW": 61,
+                "penta_WD": 166,
+                "penta_WL": 200,
+                "penta_DD": 126,
+                "penta_LD": 207,
+                "penta_LL": 81
             }
         }
     }

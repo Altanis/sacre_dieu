@@ -47,7 +47,7 @@
     "site": "?",
     "config_name": "",
     "output": 0,
-    "seed": 11911523567908355824,
+    "seed": 12254696643221221099,
     "variant": 0,
     "ratinginterval": 10,
     "scoreinterval": 1,
@@ -64,14 +64,14 @@
         {
             "name": "Aspect",
             "dir": "",
-            "cmd": "releases/v12_killer_moves",
+            "cmd": "releases/v13_see",
             "args": "",
             "options": [],
             "limit": {
                 "tc": {
-                    "increment": 80,
+                    "increment": 50,
                     "fixed_time": 0,
-                    "time": 8000,
+                    "time": 5000,
                     "moves": 0,
                     "timemargin": 0
                 },
@@ -84,14 +84,14 @@
         {
             "name": "BlueGarbageBall",
             "dir": "",
-            "cmd": "releases/v11_fixed_history_heuristic",
+            "cmd": "releases/v12_history_heuristic",
             "args": "",
             "options": [],
             "limit": {
                 "tc": {
-                    "increment": 80,
+                    "increment": 50,
                     "fixed_time": 0,
-                    "time": 8000,
+                    "time": 5000,
                     "moves": 0,
                     "timemargin": 0
                 },
@@ -105,28 +105,28 @@
     "stats": {
         "Aspect": {
             "BlueGarbageBall": {
-                "wins": 374,
-                "losses": 338,
-                "draws": 658,
-                "penta_WW": 41,
-                "penta_WD": 172,
-                "penta_WL": 120,
-                "penta_DD": 163,
-                "penta_LD": 160,
-                "penta_LL": 29
+                "wins": 729,
+                "losses": 707,
+                "draws": 974,
+                "penta_WW": 100,
+                "penta_WD": 298,
+                "penta_WL": 231,
+                "penta_DD": 199,
+                "penta_LD": 278,
+                "penta_LL": 99
             }
         },
         "BlueGarbageBall": {
             "Aspect": {
-                "wins": 1028,
-                "losses": 1028,
-                "draws": 1750,
-                "penta_WW": 97,
-                "penta_WD": 363,
-                "penta_WL": 471,
-                "penta_DD": 512,
-                "penta_LD": 363,
-                "penta_LL": 97
+                "wins": 1753,
+                "losses": 1802,
+                "draws": 2245,
+                "penta_WW": 227,
+                "penta_WD": 615,
+                "penta_WL": 684,
+                "penta_DD": 481,
+                "penta_LD": 668,
+                "penta_LL": 225
             }
         }
     }
