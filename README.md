@@ -24,7 +24,7 @@ A UCI compliant chess engine that may or may not be French.
 - `v15_qsearch_tt_cutoff`: v14 + tt cutoffs in qsearch
 - `v16_killers`: v15 + killer move heuristic
 
-<!-- todo: SEE, PVS, tt cutoffs in qsearch, killers, fix mate scores -->
+<!-- todo: PVS, tt cutoffs in qsearch, killers, fix mate scores -->
 
 ## Features
 - [x] FEN Parser
