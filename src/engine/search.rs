@@ -126,22 +126,20 @@ impl Searcher {
             self.nodes += 1;
             num_moves += 1;
 
-            // let mut score = 0;
+            let mut score = 0;
 
-            // if num_moves == 1 {
-            //     // Full Window Search
-            //     score = -self.search::<true>(&board, depth - 1, ply + 1, -beta, -alpha);
-            // } else {
-            //     // Null Window Search
-            //     score = -self.search::<false>(&board, depth - 1, ply + 1, -alpha - 1, -alpha);
+            if num_moves == 1 {
+                // Full Window Search
+                score = -self.search::<PV>(&board, depth - 1, ply + 1, -beta, -alpha);
+            } else {
+                // Null Window Search
+                score = -self.search::<false>(&board, depth - 1, ply + 1, -alpha - 1, -alpha);
 
-            //     if score > alpha && score < beta {
-            //         // Null Window Search failed, resort to Full Window Search
-            //         score = -self.search::<true>(&board, depth - 1, ply + 1, -beta, -alpha);
-            //     }
-            // }
-
-            let score = -self.search::<true>(&board, depth - 1, ply + 1, -beta, -alpha);
+                if PV && score > alpha && score < beta {
+                    // Null Window Search failed, resort to Full Window Search
+                    score = -self.search::<true>(&board, depth - 1, ply + 1, -beta, -alpha);
+                }
+            }
 
             if self.search_cancelled() {
                 self.finished = false;
