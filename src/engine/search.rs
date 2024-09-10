@@ -130,12 +130,12 @@ impl Searcher {
 
             if num_moves == 1 {
                 // Full Window Search
-                score = -self.search::<true>(&board, depth - 1, ply + 1, -beta, -alpha);
+                score = -self.search::<PV>(&board, depth - 1, ply + 1, -beta, -alpha);
             } else {
                 // Null Window Search
                 score = -self.search::<false>(&board, depth - 1, ply + 1, -alpha - 1, -alpha);
 
-                if score > alpha && score < beta {
+                if PV && score > alpha && score < beta {
                     // Null Window Search failed, resort to Full Window Search
                     score = -self.search::<true>(&board, depth - 1, ply + 1, -beta, -alpha);
                 }
