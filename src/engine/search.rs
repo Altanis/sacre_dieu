@@ -96,7 +96,7 @@ impl Searcher {
             return self.quiescence_search(old_board, ply, alpha, beta);
         }
 
-        if ply > 0 {
+        if !PV && ply > 0 {
             if let Some(entry) = self.transposition_table.get(old_board.zobrist_key) {
                 if entry.zobrist_key == old_board.zobrist_key && entry.depth >= depth {
                     match entry.evaluation_type {
