@@ -18,28 +18,37 @@ A UCI compliant chess engine that may or may not be French.
     - [x] Threefold Repetition
     - [x] 50-Move Rule
 - [x] Mate Distance Pruning
-- [ ] Move Ordering Heuristics
+- [x] Move Ordering Heuristics
     - [x] MVV-LVA
     - [x] Hash Move Ordering
     - [x] History Heuristic with Gravity
     - [x] Killer Moves
-    - [ ] SEE (strong)
+    - [x] SEE (strong)
 - [x] HCE
     - [x] Material Evaluation
     - [x] Piece Square Tables
 - [x] Quiescence Search (Captures + Promotions)
-- [ ] Principal Variation Search
+- [x] Principal Variation Search
 - [x] Transposition Table
     - [x] Data Structure
     - [x] Cutoffs 
-- [ ] Passed Pawn Detection
+- [ ] Reverse Futility Pruning
 - [ ] Null Move Pruning
-- [ ] Reverse + Futility Pruning
-- [ ] Delta Pruning
 - [ ] Late Move Reduction
-- [ ] Check Extensions
+- [ ] Late Move Pruning
+- [ ] Futility Pruning
+- [ ] Internal Iterative Reduction
+- [ ] Improving Heuristic
+- [ ] Quiescent SEE Pruning
+- [ ] PVS SEE Pruning
+- [ ] Continuation History
+- [ ] Capture History
+- [ ] History Pruning
 - [ ] Singular Extensions
-- [ ] Razoring
-- [ ] Aspiration Windows
+- [ ] Multicut
+- [ ] Double/Triple/Negative Extensions
+- [ ] Cutnode
+- [ ] Static Eval Correction History
+- [ ] Quiescent Futility Pruning
 - [ ] NNUE
 - [ ] Threading
