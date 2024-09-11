@@ -86,7 +86,7 @@ impl Searcher {
 
     /// Searches for a move with the highest evaluation with a fixed depth and a hard time limit.
     pub fn search<const PV: bool>(&mut self, old_board: &Board, depth: usize, ply: usize, mut alpha: i32, beta: i32) -> i32 {
-        self.move_sorter.update_killer(None, ply + 2);
+        self.move_sorter.update_killer(None, ply + 1);
 
         if ply > 0 && (old_board.half_move_counter >= 100 || self.past_boards.iter().filter(|p| **p == old_board.zobrist_key).count() == 2) {
             return 0; // 50 move repetition or threefold repetition.
