@@ -2,7 +2,7 @@ use std::{sync::{atomic::{AtomicBool, Ordering}, Arc}, time::{Duration, Instant}
 
 use arrayvec::ArrayVec;
 
-use crate::utils::{board::Board, consts::{BEST_EVAL, MAX_DEPTH, SHALLOWEST_PROVEN_LOSS, WORST_EVAL}, piece_move::{Move, MoveArray, MoveFlags, MoveSorter}, transposition_table::{EvaluationType, TTEntry, TranspositionTable}};
+use crate::utils::{board::Board, consts::{BEST_EVAL, MAX_DEPTH, RFP_DEPTH, RFP_THRESHOLD, SHALLOWEST_PROVEN_LOSS, WORST_EVAL}, piece_move::{Move, MoveArray, MoveFlags, MoveSorter}, transposition_table::{EvaluationType, TTEntry, TranspositionTable}};
 use super::eval;
 
 pub struct Searcher {
@@ -109,6 +109,15 @@ impl Searcher {
             }
         }
 
+        let in_check = old_board.in_check(old_board.side_to_move);
+        let static_eval = eval::evaluate_board(old_board);
+
+        // Reverse Futility Pruning
+        if !PV && !in_check && depth < RFP_DEPTH && static_eval - (RFP_THRESHOLD * depth) as i32 >= beta {
+            // test (static_eval + β) / 2
+            return static_eval;
+        }
+
         let mut moves = ArrayVec::new();
         old_board.generate_moves(&mut moves, false);
         self.move_sorter.order_moves(old_board, self, &mut moves, ply, false);
@@ -122,7 +131,7 @@ impl Searcher {
         for piece_move in moves.iter() {
             let is_quiet = piece_move.flags != MoveFlags::EnPassant && old_board.board[piece_move.end.index()].is_none();
             let Some(board) = old_board.make_move(piece_move, false) else { continue; };
-            
+
             self.nodes += 1;
             num_moves += 1;
 
