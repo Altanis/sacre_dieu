@@ -120,9 +120,21 @@ impl Searcher {
         let mut evaluation_type = EvaluationType::UpperBound;
 
         for piece_move in moves.iter() {
-            let is_quiet = piece_move.flags != MoveFlags::EnPassant && old_board.board[piece_move.end.index()].is_none();
             let Some(board) = old_board.make_move(piece_move, false) else { continue; };
             
+            let is_quiet = piece_move.flags != MoveFlags::EnPassant && old_board.board[piece_move.end.index()].is_none();
+            let in_check = board.in_check(board.side_to_move);
+            let static_eval = eval::evaluate_board(&board);
+
+            let DEPTH = 5;
+            let THRESHOLD = 200;
+
+            // Reverse Futility Pruning
+            if !PV && !in_check && depth < DEPTH && static_eval - (THRESHOLD * depth) as i32 >= beta {
+                // test (static_eval + β) / 2
+                return static_eval;
+            }
+
             self.nodes += 1;
             num_moves += 1;
 
