@@ -189,14 +189,14 @@ impl MoveSorter {
         let is_quiet = !qsearch && piece_move.flags != MoveFlags::EnPassant && board.board[piece_move.end.index()].is_none();
         if is_quiet {
             // History + Killer Heuristics
-            // let killer_move = self.get_killer(ply);
+            let killer_move = self.get_killer(ply);
             let history_score = self.get_history(board, piece_move);
 
-            // if killer_move == Some(piece_move) {
-                // return Self::KILLER_MOVE;
-            // } else {
+            if killer_move == Some(piece_move) {
+                return Self::KILLER_MOVE + history_score;
+            } else {
                 return Self::QUIET_MOVE + history_score;
-            // }
+            }
         }
 
         0
