@@ -513,6 +513,16 @@ impl Board {
         }
     }
 
+    /// Makes an empty move.
+    pub fn make_null_move(&self) -> Board {
+        let mut board = self.clone();
+
+        board.side_to_move = !board.side_to_move;
+        board.en_passant = None;
+
+        board
+    }
+
     /// Performance testing, move path enumerating function.
     pub fn perft(&self, depth: usize) -> u64 {
         if depth == 0 {

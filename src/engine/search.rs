@@ -118,6 +118,14 @@ impl Searcher {
             return static_eval;
         }
 
+        if !PV && !in_check { // todo check `static_eval >= beta`
+            let nmp_board = old_board.make_null_move();
+            let nmp_score = -self.search::<false>(&nmp_board, depth - 3, ply + 1, -beta, -alpha);
+            if nmp_score >= beta {
+                return nmp_score;
+            }
+        }
+
         let mut moves = ArrayVec::new();
         old_board.generate_moves(&mut moves, false);
         self.move_sorter.order_moves(old_board, self, &mut moves, ply, false);
