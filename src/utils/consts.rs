@@ -20,15 +20,14 @@ pub const fn get_piece_type(piece_code: char) -> PieceType {
 
 pub const MAX_DEPTH: i32 = 127;
 
+// Constants which represent evaluation thresholds.
 pub const WORST_EVAL: i32 = -i32::MAX;
-
 pub const SHALLOWEST_PROVEN_LOSS: i32 = -100000;
 pub const DEEPEST_PROVEN_LOSS: i32 = SHALLOWEST_PROVEN_LOSS + MAX_DEPTH;
-
 pub const DEEPEST_PROVEN_WIN: i32 = SHALLOWEST_PROVEN_WIN - MAX_DEPTH;
 pub const SHALLOWEST_PROVEN_WIN: i32 = 100000;
-
 pub const BEST_EVAL: i32 = i32::MAX;
+
 
 // Values of each piece, in centipawns.
 pub const PAWN_VALUE: i32 = 100;
@@ -37,6 +36,10 @@ pub const BISHOP_VALUE: i32 = 320;
 pub const ROOK_VALUE: i32 = 500;
 pub const QUEEN_VALUE: i32 = 900;
 pub const KING_VALUE: i32 = 0;
+
+// Reverse Futility Pruning constants.
+pub const RFP_DEPTH: usize = 5;
+pub const RFP_THRESHOLD: usize = 200;
 
 // PSQT table, stolen from Pesto.
 // NOTE: These PSQT tables assume A8 = 0.
