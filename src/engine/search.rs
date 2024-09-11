@@ -114,13 +114,13 @@ impl Searcher {
 
         // Reverse Futility Pruning
         if !PV && !in_check && depth < RFP_DEPTH && static_eval - (RFP_THRESHOLD * depth) as i32 >= beta {
-            // test (static_eval + β) / 2
             return static_eval;
         }
 
+        // Null Move Pruning
         if !PV && !in_check { // todo check `static_eval >= beta`
             let nmp_board = old_board.make_null_move();
-            let nmp_score = -self.search::<false>(&nmp_board, depth - 3, ply + 1, -beta, -alpha);
+            let nmp_score = -self.search::<false>(&nmp_board, (depth as isize - 3).max(0) as usize, ply + 1, -beta, -alpha);
             if nmp_score >= beta {
                 return nmp_score;
             }
