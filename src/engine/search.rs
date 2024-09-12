@@ -2,7 +2,7 @@ use std::{sync::{atomic::{AtomicBool, Ordering}, Arc}, time::{Duration, Instant}
 
 use arrayvec::ArrayVec;
 
-use crate::utils::{board::Board, consts::{BEST_EVAL, MAX_DEPTH, RFP_DEPTH, RFP_THRESHOLD, SHALLOWEST_PROVEN_LOSS, WORST_EVAL}, piece_move::{Move, MoveArray, MoveFlags, MoveSorter}, transposition_table::{EvaluationType, TTEntry, TranspositionTable}};
+use crate::utils::{board::Board, consts::{BEST_EVAL, LMR_DEPTH_REDUCTION, LMR_MOVE_THRESHOLD, MAX_DEPTH, RFP_DEPTH, RFP_THRESHOLD, SHALLOWEST_PROVEN_LOSS, WORST_EVAL}, piece_move::{Move, MoveArray, MoveFlags, MoveSorter}, transposition_table::{EvaluationType, TTEntry, TranspositionTable}};
 use super::eval;
 
 pub struct Searcher {
@@ -150,7 +150,11 @@ impl Searcher {
                 score = -self.search::<PV>(&board, depth - 1, ply + 1, -beta, -alpha);
             } else {
                 // Null Window Search
-                score = -self.search::<false>(&board, depth - 1, ply + 1, -alpha - 1, -alpha);
+                if !PV && !in_check && num_moves > LMR_MOVE_THRESHOLD {
+                    score = -self.search::<false>(&board, depth - 1 - LMR_DEPTH_REDUCTION, ply + 1, -alpha - 1, -alpha);
+                } else {
+                    score = -self.search::<false>(&board, depth - 1, ply + 1, -alpha - 1, -alpha);
+                }
 
                 if PV && score > alpha && score < beta {
                     // Null Window Search failed, resort to Full Window Search

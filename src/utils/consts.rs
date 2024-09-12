@@ -41,6 +41,10 @@ pub const KING_VALUE: i32 = 0;
 pub const RFP_DEPTH: usize = 5;
 pub const RFP_THRESHOLD: usize = 200;
 
+// Late Move Reduction constants.
+pub const LMR_MOVE_THRESHOLD: usize = 3;
+pub const LMR_DEPTH_REDUCTION: usize = 1;
+
 // PSQT table, stolen from Pesto.
 // NOTE: These PSQT tables assume A8 = 0.
 pub const PIECE_SQUARE_TABLE: [[(i32, i32); 64]; PieceType::COUNT] = [
