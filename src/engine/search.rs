@@ -149,16 +149,14 @@ impl Searcher {
                 // Full Window Search
                 score = -self.search::<PV>(&board, depth - 1, ply + 1, -beta, -alpha);
             } else {
-                // Null Window Search
-                if !PV && !in_check && num_moves > LMR_MOVE_THRESHOLD {
-                    score = -self.search::<false>(&board, depth - 1 - LMR_DEPTH_REDUCTION, ply + 1, -alpha - 1, -alpha);
-                } else {
-                    score = -self.search::<false>(&board, depth - 1, ply + 1, -alpha - 1, -alpha);
-                }
+                let reduction = if !PV && !in_check && num_moves > LMR_MOVE_THRESHOLD { LMR_DEPTH_REDUCTION as isize } else { 0 };
 
-                if PV && score > alpha && score < beta {
+                // Null Window Search
+                score = -self.search::<false>(&board, (depth as isize - 1 - reduction).max(0) as usize, ply + 1, -alpha - 1, -alpha);
+
+                if score > alpha && (score < beta || reduction > 0) {
                     // Null Window Search failed, resort to Full Window Search
-                    score = -self.search::<true>(&board, depth - 1, ply + 1, -beta, -alpha);
+                    score = -self.search::<PV>(&board, depth - 1, ply + 1, -beta, -alpha);
                 }
             }
 
