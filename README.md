@@ -35,7 +35,8 @@ A UCI compliant chess engine that may or may not be French.
 - [x] Reverse Futility Pruning
 - [x] Null Move Pruning
 - [x] Late Move Reduction
-- [ ] Late Move Pruning
+- [x] Late Move Pruning
+- [ ] Check Extensions
 - [ ] Futility Pruning
 - [ ] Internal Iterative Reduction
 - [ ] Improving Heuristic

@@ -138,6 +138,11 @@ impl Searcher {
 
         for piece_move in moves.iter() {
             let is_quiet = piece_move.flags != MoveFlags::EnPassant && old_board.board[piece_move.end.index()].is_none();
+            // Late Move Pruning
+            if !PV && is_quiet && depth <= 5 && num_moves >= 8 * depth {
+                continue;
+            }
+
             let Some(board) = old_board.make_move(piece_move, false) else { continue; };
 
             self.nodes += 1;
