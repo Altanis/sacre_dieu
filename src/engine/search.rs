@@ -144,8 +144,8 @@ impl Searcher {
             num_moves += 1;
 
             // Late Move Pruning
-            if !PV && is_quiet && num_moves >= 8 * depth {
-                break;
+            if !PV && is_quiet && depth <= 5 && num_moves >= 8 * depth {
+                continue;
             }
 
             let mut score = 0;
