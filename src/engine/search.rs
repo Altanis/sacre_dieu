@@ -2,7 +2,7 @@ use std::{sync::{atomic::{AtomicBool, Ordering}, Arc}, time::{Duration, Instant}
 
 use arrayvec::ArrayVec;
 
-use crate::utils::{board::Board, consts::{BEST_EVAL, MAX_DEPTH, RFP_DEPTH, RFP_THRESHOLD, SHALLOWEST_PROVEN_LOSS, WORST_EVAL}, piece_move::{Move, MoveArray, MoveFlags, MoveSorter}, transposition_table::{EvaluationType, TTEntry, TranspositionTable}};
+use crate::utils::{board::Board, consts::{BEST_EVAL, LMR_MOVE_THRESHOLD, LMR_REDUCTION_BASE, LMR_REDUCTION_DIVISOR, LMR_REDUCTION_TABLE, MAX_DEPTH, RFP_DEPTH, RFP_THRESHOLD, SHALLOWEST_PROVEN_LOSS, WORST_EVAL}, piece_move::{Move, MoveArray, MoveFlags, MoveSorter}, transposition_table::{EvaluationType, TTEntry, TranspositionTable}};
 use super::eval;
 
 pub struct Searcher {
@@ -149,12 +149,19 @@ impl Searcher {
                 // Full Window Search
                 score = -self.search::<PV>(&board, depth - 1, ply + 1, -beta, -alpha);
             } else {
-                // Null Window Search
-                score = -self.search::<false>(&board, depth - 1, ply + 1, -alpha - 1, -alpha);
+                let reduction = if !PV && !in_check && num_moves > LMR_MOVE_THRESHOLD {
+                    // LMR_REDUCTION_BASE + (depth as f32).ln() * (num_moves as f32).ln() / LMR_REDUCTION_DIVISOR
+                    LMR_REDUCTION_TABLE[depth][num_moves]
+                } else {
+                    0_f32
+                };
 
-                if PV && score > alpha && score < beta {
+                // Null Window Search
+                score = -self.search::<false>(&board, (depth as f32 - 1.0 - reduction).max(0.0) as usize, ply + 1, -alpha - 1, -alpha);
+
+                if score > alpha && (score < beta || reduction > 0.0) {
                     // Null Window Search failed, resort to Full Window Search
-                    score = -self.search::<true>(&board, depth - 1, ply + 1, -beta, -alpha);
+                    score = -self.search::<PV>(&board, depth - 1, ply + 1, -beta, -alpha);
                 }
             }
 
