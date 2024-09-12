@@ -138,7 +138,6 @@ impl Searcher {
 
         for piece_move in moves.iter() {
             let is_quiet = piece_move.flags != MoveFlags::EnPassant && old_board.board[piece_move.end.index()].is_none();
-            let extension = if in_check { 1 } else { 0 };
 
             // Late Move Pruning
             if !PV && is_quiet && depth <= 5 && num_moves >= 8 * depth {
@@ -149,6 +148,8 @@ impl Searcher {
 
             self.nodes += 1;
             num_moves += 1;
+
+            let extension = if board.in_check(board.side_to_move) { 1 } else { 0 };
 
             let mut score = 0;
 
