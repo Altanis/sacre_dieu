@@ -43,9 +43,10 @@ pub const RFP_THRESHOLD: usize = 200;
 
 // Late Move Reduction constants.
 pub const LMR_MOVE_THRESHOLD: usize = 3;
-// pub const LMR_DEPTH_REDUCTION: usize = 1;
 pub const LMR_REDUCTION_BASE: f32 = 0.77;
 pub const LMR_REDUCTION_DIVISOR: f32 = 2.36;
+
+include!("../../consts/lmr.rs");
 
 // PSQT table, stolen from Pesto.
 // NOTE: These PSQT tables assume A8 = 0.
@@ -227,9 +228,9 @@ macro_rules! include_bytes_aligned {
 }
 
 pub fn get_bishop_mask(idx: usize) -> Bitboard {
-    cast_slice(include_bytes_aligned!(64, "../../bitboards/bishop.bin"))[idx]
+    cast_slice(include_bytes_aligned!(64, "../../consts/bishop.bin"))[idx]
 }
 
 pub fn get_rook_mask(idx: usize) -> Bitboard {
-    cast_slice(include_bytes_aligned!(64, "../../bitboards/rook.bin"))[idx]
+    cast_slice(include_bytes_aligned!(64, "../../consts/rook.bin"))[idx]
 }
