@@ -137,11 +137,16 @@ impl Searcher {
         let mut evaluation_type = EvaluationType::UpperBound;
 
         for piece_move in moves.iter() {
-            let is_quiet = piece_move.flags != MoveFlags::EnPassant && old_board.board[piece_move.end.index()].is_none();
             let Some(board) = old_board.make_move(piece_move, false) else { continue; };
+            let is_quiet = piece_move.flags != MoveFlags::EnPassant && old_board.board[piece_move.end.index()].is_none();
 
             self.nodes += 1;
             num_moves += 1;
+
+            // Late Move Pruning
+            if !PV && is_quiet && num_moves >= 8 * depth {
+                break;
+            }
 
             let mut score = 0;
 
