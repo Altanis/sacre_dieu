@@ -33,7 +33,7 @@ A UCI compliant chess engine that may or may not be French.
     - [x] Data Structure
     - [x] Cutoffs 
 - [x] Reverse Futility Pruning
-- [ ] Null Move Pruning
+- [x] Null Move Pruning
 - [ ] Late Move Reduction
 - [ ] Late Move Pruning
 - [ ] Futility Pruning

@@ -513,6 +513,36 @@ impl Board {
         }
     }
 
+    /// Makes an empty move.
+    pub fn make_null_move(&self) -> Board {
+        let mut board = self.clone();
+
+        if let Some(ep) = board.en_passant {
+            board.zobrist_key ^= ZOBRIST_EN_PASSANT_KEYS[ep.rank as usize + 1];
+        } else {
+            board.zobrist_key ^= ZOBRIST_EN_PASSANT_KEYS[0];
+        }
+    
+        if board.side_to_move == PieceColor::Black {
+            board.zobrist_key ^= ZOBRIST_SIDE_TO_MOVE;
+        }
+
+        board.side_to_move = !board.side_to_move;
+        board.en_passant = None;
+
+        if let Some(ep) = board.en_passant {
+            board.zobrist_key ^= ZOBRIST_EN_PASSANT_KEYS[ep.rank as usize + 1];
+        } else {
+            board.zobrist_key ^= ZOBRIST_EN_PASSANT_KEYS[0];
+        }
+    
+        if board.side_to_move == PieceColor::Black {
+            board.zobrist_key ^= ZOBRIST_SIDE_TO_MOVE;
+        }
+
+        board
+    }
+
     /// Performance testing, move path enumerating function.
     pub fn perft(&self, depth: usize) -> u64 {
         if depth == 0 {
