@@ -8,37 +8,41 @@ A UCI compliant chess engine that may or may not be French.
 <!-- todo: pvs tt cutoffs, tt cutoffs in qsearch, killers, see pruning, fix mate scores -->
 
 ## Features
+
+### Board Features
 - [x] FEN Parser
 - [x] Bitboards
 - [x] Magic Bitboards
 - [x] UCI Compliancy
+
+### Move Ordering Heuristics
+- [x] MVV-LVA
+- [x] Hash Move Ordering
+- [x] History Heuristic with Gravity
+- [x] Killer Moves
+- [x] SEE (strong)
+
+### Evaluation Heuristics
+- [x] Material Evaluation
+- [x] Piece Square Tables
+- [ ] NNUE
+
+### Search Heuristics
 - [x] Negamax with A/B Pruning
 - [x] Iterative Deepening
 - [x] Draw Detection
     - [x] Threefold Repetition
     - [x] 50-Move Rule
 - [x] Mate Distance Pruning
-- [x] Move Ordering Heuristics
-    - [x] MVV-LVA
-    - [x] Hash Move Ordering
-    - [x] History Heuristic with Gravity
-    - [x] Killer Moves
-    - [x] SEE (strong)
-- [x] HCE
-    - [x] Material Evaluation
-    - [x] Piece Square Tables
 - [x] Quiescence Search (Captures + Promotions)
 - [x] Principal Variation Search
-- [x] Transposition Table
-    - [x] Data Structure
-    - [x] Cutoffs 
+- [x] Transposition Table Cutoff
 - [x] Reverse Futility Pruning
 - [x] Null Move Pruning
 - [x] Late Move Reduction
 - [x] Late Move Pruning
 - [x] Check Extensions
-- [ ] Futility Pruning
-- [ ] Internal Iterative Reduction
+- [x] Internal Iterative Reduction
 - [ ] Improving Heuristic
 - [ ] Quiescent SEE Pruning
 - [ ] PVS SEE Pruning
@@ -50,6 +54,8 @@ A UCI compliant chess engine that may or may not be French.
 - [ ] Double/Triple/Negative Extensions
 - [ ] Cutnode
 - [ ] Static Eval Correction History
+- [ ] Futility Pruning
 - [ ] Quiescent Futility Pruning
-- [ ] NNUE
-- [ ] Threading
+
+### Misc
+- [ ] Lazy SMP

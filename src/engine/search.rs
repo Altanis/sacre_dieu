@@ -85,7 +85,7 @@ impl Searcher {
     }
 
     /// Searches for a move with the highest evaluation with a fixed depth and a hard time limit.
-    pub fn search<const PV: bool>(&mut self, old_board: &Board, depth: usize, ply: usize, mut alpha: i32, beta: i32) -> i32 {
+    pub fn search<const PV: bool>(&mut self, old_board: &Board, mut depth: usize, ply: usize, mut alpha: i32, beta: i32) -> i32 {
         self.move_sorter.update_killer(None, ply + 2);
 
         if ply > 0 && (old_board.half_move_counter >= 100 || self.past_boards.iter().filter(|p| **p == old_board.zobrist_key).count() == 2) {
@@ -96,9 +96,10 @@ impl Searcher {
             return self.quiescence_search(old_board, ply, alpha, beta);
         }
 
+        let entry = self.transposition_table.get(old_board.zobrist_key);
         if !PV && ply > 0 {
-            if let Some(entry) = self.transposition_table.get(old_board.zobrist_key) {
-                if entry.zobrist_key == old_board.zobrist_key && entry.depth >= depth {
+            if let Some(entry) = entry {
+                if entry.depth >= depth {
                     match entry.evaluation_type {
                         EvaluationType::Exact => return entry.evaluation,
                         EvaluationType::UpperBound if entry.evaluation <= alpha => return entry.evaluation,
@@ -106,6 +107,8 @@ impl Searcher {
                         _ => {}
                     }
                 }
+            } else if depth >= 4 {
+                depth -= 1;
             }
         }
 

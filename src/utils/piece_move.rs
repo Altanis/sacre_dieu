@@ -144,13 +144,7 @@ impl MoveSorter {
     /// Orders moves based off guesses.
     pub fn order_moves(&self, board: &Board, searcher: &Searcher, moves: &mut MoveArray, ply: usize, qsearch: bool) {
         let mut scores: ArrayVec<i32, MAX_LEGAL_MOVES> = ArrayVec::new();
-        let hash_move = searcher.transposition_table.get(board.zobrist_key).and_then(|entry| {
-            if entry.zobrist_key == board.zobrist_key { 
-                entry.best_move
-            } else {
-                None
-            }
-        });
+        let hash_move = searcher.transposition_table.get(board.zobrist_key).and_then(|e| e.best_move);
 
         for piece_move in moves.iter() {
             scores.push(self.score_move(board, *piece_move, ply, hash_move, qsearch));

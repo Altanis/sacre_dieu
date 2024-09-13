@@ -79,7 +79,7 @@ impl TranspositionTable {
 
     /// Gets an entry from the transposition table.
     pub fn get(&self, key: u64) -> Option<&TTEntry> {
-        self.table[self.index(key)].as_ref()
+        self.table[self.index(key)].as_ref().filter(|entry| entry.zobrist_key == key)
     }
 
     /// Stores an entry in the transposition table and returns its index.
