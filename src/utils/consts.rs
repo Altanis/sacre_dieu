@@ -49,7 +49,8 @@ include!("../../consts/lmr.rs");
 
 // Futility Pruning constants.
 pub const FP_DEPTH: usize = 5;
-pub const FP_EVAL_MARGIN: usize = 250;
+pub const FP_EVAL_INITIAL: usize = 150;
+pub const FP_EVAL_SLOPE: usize = 100;
 
 // PSQT table, stolen from Pesto.
 // NOTE: These PSQT tables assume A8 = 0.

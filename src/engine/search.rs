@@ -2,7 +2,7 @@ use std::{sync::{atomic::{AtomicBool, Ordering}, Arc}, time::{Duration, Instant}
 
 use arrayvec::ArrayVec;
 
-use crate::utils::{board::Board, consts::{BEST_EVAL, DEEPEST_PROVEN_LOSS, FP_DEPTH, FP_EVAL_MARGIN, LMR_MOVE_THRESHOLD, LMR_REDUCTION_TABLE, MAX_DEPTH, RFP_DEPTH, RFP_THRESHOLD, SHALLOWEST_PROVEN_LOSS, WORST_EVAL}, piece_move::{Move, MoveArray, MoveFlags, MoveSorter}, transposition_table::{EvaluationType, TTEntry, TranspositionTable}};
+use crate::utils::{board::Board, consts::{BEST_EVAL, DEEPEST_PROVEN_LOSS, FP_DEPTH, FP_EVAL_INITIAL, FP_EVAL_SLOPE, LMR_MOVE_THRESHOLD, LMR_REDUCTION_TABLE, MAX_DEPTH, RFP_DEPTH, RFP_THRESHOLD, SHALLOWEST_PROVEN_LOSS, WORST_EVAL}, piece_move::{Move, MoveArray, MoveFlags, MoveSorter}, transposition_table::{EvaluationType, TTEntry, TranspositionTable}};
 use super::eval;
 
 pub struct Searcher {
@@ -146,7 +146,7 @@ impl Searcher {
 
             // Futility Pruning
             let is_mated = best_score <= DEEPEST_PROVEN_LOSS;
-            if is_quiet && !is_mated && depth <= FP_DEPTH && (static_eval + FP_EVAL_MARGIN as i32) < alpha {
+            if is_quiet && !is_mated && depth <= FP_DEPTH && (static_eval + (FP_EVAL_INITIAL + FP_EVAL_SLOPE * depth) as i32) < alpha {
                 continue;
             }
 
