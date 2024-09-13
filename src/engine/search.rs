@@ -2,7 +2,7 @@ use std::{sync::{atomic::{AtomicBool, Ordering}, Arc}, time::{Duration, Instant}
 
 use arrayvec::ArrayVec;
 
-use crate::utils::{board::Board, consts::{BEST_EVAL, LMR_MOVE_THRESHOLD, LMR_REDUCTION_BASE, LMR_REDUCTION_DIVISOR, LMR_REDUCTION_TABLE, MAX_DEPTH, RFP_DEPTH, RFP_THRESHOLD, SHALLOWEST_PROVEN_LOSS, WORST_EVAL}, piece_move::{Move, MoveArray, MoveFlags, MoveSorter}, transposition_table::{EvaluationType, TTEntry, TranspositionTable}};
+use crate::utils::{board::Board, consts::{BEST_EVAL, DEEPEST_PROVEN_LOSS, FP_DEPTH, FP_EVAL_MARGIN, LMR_MOVE_THRESHOLD, LMR_REDUCTION_TABLE, MAX_DEPTH, RFP_DEPTH, RFP_THRESHOLD, SHALLOWEST_PROVEN_LOSS, WORST_EVAL}, piece_move::{Move, MoveArray, MoveFlags, MoveSorter}, transposition_table::{EvaluationType, TTEntry, TranspositionTable}};
 use super::eval;
 
 pub struct Searcher {
@@ -133,7 +133,7 @@ impl Searcher {
         let mut quiet_moves: MoveArray = ArrayVec::new();
         let mut num_moves = 0;
 
-        let (mut best_score, mut best_move) = (WORST_EVAL, None);
+        let (mut best_score, mut best_move, mut last_move) = (WORST_EVAL, None, None);
         let mut evaluation_type = EvaluationType::UpperBound;
 
         for piece_move in moves.iter() {
@@ -144,10 +144,17 @@ impl Searcher {
                 continue;
             }
 
+            // Futility Pruning
+            let is_mated = best_score <= DEEPEST_PROVEN_LOSS;
+            if is_quiet && !is_mated && depth <= FP_DEPTH && (static_eval + FP_EVAL_MARGIN as i32) < alpha {
+                continue;
+            }
+
             let Some(board) = old_board.make_move(piece_move, false) else { continue; };
 
             self.nodes += 1;
             num_moves += 1;
+            last_move = Some(*piece_move);
 
             let extension = if board.in_check(board.side_to_move) { 1 } else { 0 };
 
@@ -221,6 +228,10 @@ impl Searcher {
             } else {
                 return 0; // Stalemate.
             }
+        }
+
+        if ply == 0 && self.best_move.is_none() {
+            self.best_move = last_move;
         }
 
         if !self.search_cancelled() {

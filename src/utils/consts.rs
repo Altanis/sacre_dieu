@@ -43,10 +43,13 @@ pub const RFP_THRESHOLD: usize = 200;
 
 // Late Move Reduction constants.
 pub const LMR_MOVE_THRESHOLD: usize = 3;
-pub const LMR_REDUCTION_BASE: f32 = 0.77;
-pub const LMR_REDUCTION_DIVISOR: f32 = 2.36;
-
+// pub const LMR_REDUCTION_BASE: f32 = 0.77;
+// pub const LMR_REDUCTION_DIVISOR: f32 = 2.36;
 include!("../../consts/lmr.rs");
+
+// Futility Pruning constants.
+pub const FP_DEPTH: usize = 5;
+pub const FP_EVAL_MARGIN: usize = 250;
 
 // PSQT table, stolen from Pesto.
 // NOTE: These PSQT tables assume A8 = 0.
