@@ -22,10 +22,10 @@ pub const MAX_DEPTH: i32 = 127;
 
 // Constants which represent evaluation thresholds.
 pub const WORST_EVAL: i32 = -i32::MAX;
-pub const SHALLOWEST_PROVEN_LOSS: i32 = -100000;
+pub const SHALLOWEST_PROVEN_LOSS: i32 = -100_000;
 pub const DEEPEST_PROVEN_LOSS: i32 = SHALLOWEST_PROVEN_LOSS + MAX_DEPTH;
 pub const DEEPEST_PROVEN_WIN: i32 = SHALLOWEST_PROVEN_WIN - MAX_DEPTH;
-pub const SHALLOWEST_PROVEN_WIN: i32 = 100000;
+pub const SHALLOWEST_PROVEN_WIN: i32 = 100_000;
 pub const BEST_EVAL: i32 = i32::MAX;
 
 

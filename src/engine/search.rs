@@ -145,8 +145,8 @@ impl Searcher {
             }
 
             // Futility Pruning
-            let is_mated = (SHALLOWEST_PROVEN_LOSS..DEEPEST_PROVEN_LOSS).contains(&best_score);
-            if is_quiet && !is_mated && depth <= FP_DEPTH && (static_eval + (FP_EVAL_INITIAL + FP_EVAL_SLOPE * depth) as i32) < alpha {
+            let is_mated = best_score <= DEEPEST_PROVEN_LOSS;
+            if !PV && is_quiet && !is_mated && depth <= FP_DEPTH && (static_eval + (FP_EVAL_INITIAL + FP_EVAL_SLOPE * depth) as i32) < alpha {
                 continue;
             }
 
