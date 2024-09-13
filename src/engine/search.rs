@@ -138,6 +138,7 @@ impl Searcher {
 
         for piece_move in moves.iter() {
             let is_quiet = piece_move.flags != MoveFlags::EnPassant && old_board.board[piece_move.end.index()].is_none();
+
             // Late Move Pruning
             if !PV && is_quiet && depth <= 5 && num_moves >= 8 * depth {
                 continue;
@@ -148,25 +149,26 @@ impl Searcher {
             self.nodes += 1;
             num_moves += 1;
 
+            let extension = if board.in_check(board.side_to_move) { 1 } else { 0 };
+
             let mut score = 0;
 
             if num_moves == 1 {
                 // Full Window Search
-                score = -self.search::<PV>(&board, depth - 1, ply + 1, -beta, -alpha);
+                score = -self.search::<PV>(&board, depth - 1 + extension, ply + 1, -beta, -alpha);
             } else {
                 let reduction = if !PV && !in_check && num_moves > LMR_MOVE_THRESHOLD {
-                    // LMR_REDUCTION_BASE + (depth as f32).ln() * (num_moves as f32).ln() / LMR_REDUCTION_DIVISOR
                     LMR_REDUCTION_TABLE[depth][num_moves]
                 } else {
                     0_f32
                 };
 
                 // Null Window Search
-                score = -self.search::<false>(&board, (depth as f32 - 1.0 - reduction).max(0.0) as usize, ply + 1, -alpha - 1, -alpha);
+                score = -self.search::<false>(&board, (depth as f32 - 1.0 - reduction + extension as f32).max(0.0) as usize, ply + 1, -alpha - 1, -alpha);
 
                 if score > alpha && (score < beta || reduction > 0.0) {
                     // Null Window Search failed, resort to Full Window Search
-                    score = -self.search::<PV>(&board, depth - 1, ply + 1, -beta, -alpha);
+                    score = -self.search::<PV>(&board, depth - 1 + extension, ply + 1, -beta, -alpha);
                 }
             }
 
