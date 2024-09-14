@@ -90,7 +90,7 @@ impl Searcher {
         let (mut eval, mut best_move) = (0, None);
 
         self.depth = 0;
-        for _ in 0..=self.max_depth {
+        for _ in 0..self.max_depth {
             // Soft Time Control
             if self.timer.elapsed() >= self.soft_tm {
                 break;
@@ -220,7 +220,7 @@ impl Searcher {
             self.nodes += 1;
             num_moves += 1;
 
-            let extension = if board.in_check(board.side_to_move) { 1 } else { 0 };
+            let extension = if depth < 127 && board.in_check(board.side_to_move) { 1 } else { 0 };
 
             let mut score = 0;
 

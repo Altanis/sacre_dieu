@@ -40,7 +40,7 @@ A UCI compliant chess engine that may or may not be French.
 - [x] Aspiration Windows
 - [x] Soft TM
 - [x] Improving Heuristic
-- [ ] Quiescent SEE Pruning
+- [x] Quiescent SEE Pruning
 - [ ] PVS SEE Pruning
 - [ ] Continuation History
 - [ ] Capture History
