@@ -9,7 +9,7 @@ use std::{sync::{atomic::AtomicBool, mpsc::channel, Arc}, time::Duration};
 use colored::Colorize;
 
 use engine::search::Searcher;
-use utils::{board::Board, consts::{BEST_EVAL, LMR_REDUCTION_BASE, LMR_REDUCTION_DIVISOR, MAX_DEPTH, MAX_LEGAL_MOVES, WORST_EVAL}, piece::Tile, piece_move::{Move, MoveSorter}};
+use utils::{board::Board, consts::{BEST_EVAL, MAX_DEPTH, MAX_LEGAL_MOVES, WORST_EVAL}, piece::Tile, piece_move::{Move, MoveSorter}};
 
 mod engine;
 mod utils;
@@ -83,7 +83,7 @@ fn main() {
             let board = Board::new(pos);
     
             let time = std::time::Instant::now();
-            searcher.search::<true>(&board, searcher.max_depth, 0, WORST_EVAL, BEST_EVAL);
+            searcher.search_timed(&board);
             let _end = time.elapsed();
             let end = _end.as_secs_f64();
     

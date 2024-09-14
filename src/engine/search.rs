@@ -17,6 +17,8 @@ pub struct Searcher {
     pub time_limit: Duration,
     /// The timer associated with the search.
     pub timer: Instant,
+    /// The current depth of the search.
+    pub depth: usize,
     /// The maximum depth of the search.
     pub max_depth: usize,
     /// A boolean signalling when to stop a search.
@@ -30,7 +32,7 @@ pub struct Searcher {
 
 impl Searcher {
     /// Initializes a new searcher.
-    pub fn new(time_limit: Duration, depth: usize, stop_signal: Arc<AtomicBool>) -> Self {
+    pub fn new(time_limit: Duration, max_depth: usize, stop_signal: Arc<AtomicBool>) -> Self {
         Searcher {
             past_boards: Vec::new(),
             transposition_table: TranspositionTable::from_mb(16),
@@ -38,7 +40,8 @@ impl Searcher {
 
             time_limit,
             timer: Instant::now(),
-            max_depth: depth,
+            depth: 0,
+            max_depth,
             stop_signal,
 
             nodes: 0,
@@ -56,10 +59,11 @@ impl Searcher {
         self.timer = std::time::Instant::now();
         let (mut eval, mut best_move) = (0, None);
 
-        self.max_depth = 0;
-        for _ in 0..=MAX_DEPTH {
-            self.max_depth += 1;
-            let score = self.aspiration_windows(board, self.max_depth, eval);
+        self.depth = 0;
+        for _ in 0..=self.max_depth {
+            self.depth += 1;
+            let score = self.aspiration_windows(board, self.depth, eval);
+            // let score = self.search::<true>(board, self.depth, 0, WORST_EVAL, BEST_EVAL);
 
             if self.search_cancelled() {
                 break;
@@ -85,8 +89,6 @@ impl Searcher {
         }
 
         loop {
-            // self.nodes = 0;
-
             let search_score = self.search::<true>(board, depth, 0, alpha, beta);
             if self.search_cancelled() {
                 return search_score;
