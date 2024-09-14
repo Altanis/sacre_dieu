@@ -229,7 +229,7 @@ impl Searcher {
                 score = -self.search::<PV>(&board, depth - 1 + extension, ply + 1, -beta, -alpha);
             } else {
                 let reduction = if !in_check && num_moves > LMR_MOVE_THRESHOLD {
-                    LMR_REDUCTION_TABLE[depth][num_moves]
+                    LMR_REDUCTION_TABLE[depth][num_moves] - if PV { 1.0 } else { 0.0 }
                 } else {
                     0_f32
                 };
