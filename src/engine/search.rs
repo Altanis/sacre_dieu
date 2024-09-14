@@ -209,7 +209,7 @@ impl Searcher {
             let is_quiet = piece_move.flags != MoveFlags::EnPassant && old_board.board[piece_move.end.index()].is_none();
 
             // Late Move Pruning
-            if !PV && is_quiet && depth <= 5 && num_moves >= 8 * depth {
+            if !PV && is_quiet && depth <= 5 && num_moves >= (8 * depth) / (1 + improving as usize) {
                 continue;
             }
 
