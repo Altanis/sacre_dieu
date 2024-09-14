@@ -105,7 +105,7 @@ pub struct MoveSorter {
     /// A history table which tracks move scores for quiet beta cutoffs.
     pub history_table: [[[i32; 64]; 64]; 2],
     /// A killer table which tracks quiet moves and their plies if they fail high.
-    pub killer_table: [Option<Move>; MAX_DEPTH as usize + 4]
+    pub killer_table: [Option<Move>; MAX_DEPTH + 4]
 }
 
 impl MoveSorter {
@@ -131,16 +131,6 @@ impl MoveSorter {
             += clamped_bonus - old_value * clamped_bonus.abs() / 16384;
     }
 
-    /// Gets a move from the killer table.
-    pub fn get_killer(&self, ply: usize) -> Option<Move> {
-        self.killer_table[ply]
-    }
-
-    /// Updates a move in the killer table.
-    pub fn update_killer(&mut self, killer_move: Option<Move>, ply: usize) {
-        self.killer_table[ply] = killer_move;
-    }
-
     /// Orders moves based off guesses.
     pub fn order_moves(&self, board: &Board, searcher: &Searcher, moves: &mut MoveArray, ply: usize, qsearch: bool) {
         let mut scores: ArrayVec<i32, MAX_LEGAL_MOVES> = ArrayVec::new();
@@ -153,7 +143,7 @@ impl MoveSorter {
         });
 
         for piece_move in moves.iter() {
-            scores.push(self.score_move(board, *piece_move, ply, hash_move, qsearch));
+            scores.push(self.score_move(board, searcher, *piece_move, ply, hash_move, qsearch));
         }
 
         let mut combined: ArrayVec<(_, _), MAX_LEGAL_MOVES> = scores.iter().copied().zip(moves.iter().copied()).collect();
@@ -165,7 +155,7 @@ impl MoveSorter {
     }
 
     /// Scores a move.
-    pub fn score_move(&self, board: &Board, piece_move: Move, ply: usize, hash_move: Option<Move>, qsearch: bool) -> i32 {
+    pub fn score_move(&self, board: &Board, searcher: &Searcher, piece_move: Move, ply: usize, hash_move: Option<Move>, qsearch: bool) -> i32 {
         if hash_move == Some(piece_move) {
             // Hash Move
             return Self::HASH_MOVE;
@@ -189,7 +179,7 @@ impl MoveSorter {
         let is_quiet = !qsearch && piece_move.flags != MoveFlags::EnPassant && board.board[piece_move.end.index()].is_none();
         if is_quiet {
             // History + Killer Heuristics
-            let killer_move = self.get_killer(ply);
+            let killer_move = searcher.get_search_entry(ply).expect("expected killer move at ply in move ordering").killer_move;
             let history_score = self.get_history(board, piece_move);
 
             if killer_move == Some(piece_move) {

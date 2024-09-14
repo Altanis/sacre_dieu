@@ -5,11 +5,22 @@ use arrayvec::ArrayVec;
 use crate::utils::{board::Board, consts::{BEST_EVAL, LMR_MOVE_THRESHOLD, LMR_REDUCTION_BASE, LMR_REDUCTION_DIVISOR, LMR_REDUCTION_TABLE, MAX_DEPTH, RFP_DEPTH, RFP_THRESHOLD, SHALLOWEST_PROVEN_LOSS, WORST_EVAL}, piece_move::{Move, MoveArray, MoveFlags, MoveSorter}, transposition_table::{EvaluationType, TTEntry, TranspositionTable}};
 use super::eval;
 
+/// An entry in the search stack.
+#[derive(Debug, Default, Clone)]
+pub struct SearchEntry {
+    /// The killer move at the ply.
+    pub killer_move: Option<Move>,
+    /// The static evaluation at the ply.
+    pub static_eval: i32
+}
+
 pub struct Searcher {
     /// The past board positions, represented as zobrist hashes.
     pub past_boards: Vec<u64>,
     /// A table of previous searches and their evaluations.
     pub transposition_table: TranspositionTable,
+    /// A table of search information, indexed by ply.
+    pub search_stack: [SearchEntry; MAX_DEPTH + 4],
     /// A struct which sorts moves.
     pub move_sorter: MoveSorter,
     
@@ -38,6 +49,7 @@ impl Searcher {
         Searcher {
             past_boards: Vec::new(),
             transposition_table: TranspositionTable::from_mb(16),
+            search_stack: std::array::from_fn(|_| SearchEntry::default()),
             move_sorter: MoveSorter::new(),
 
             soft_tm,
@@ -55,6 +67,21 @@ impl Searcher {
     /// Whether or not the search has been cancelled.
     pub fn search_cancelled(&self) -> bool {
         self.stop_signal.load(Ordering::Relaxed) || self.timer.elapsed() > self.hard_tm
+    }
+
+    /// Gets an entry at a ply in the search stack.
+    pub fn get_search_entry(&self, ply: usize) -> Option<SearchEntry> {
+        self.search_stack.get(ply).cloned()
+    }
+
+    /// Updates a killer move at a ply in the search stack.
+    pub fn update_killer(&mut self, killer_move: Option<Move>, ply: usize) {
+        self.search_stack[ply].killer_move = killer_move;
+    }
+
+    /// Updates a static eval at a ply in the search stack.
+    pub fn update_static_eval(&mut self, eval: i32, ply: usize) {
+        self.search_stack[ply].static_eval = eval;
     }
 
     /// Searches for a move with a time constraint.
@@ -116,7 +143,7 @@ impl Searcher {
 
     /// Searches for a move with the highest evaluation with a fixed depth and a hard time limit.
     pub fn search<const PV: bool>(&mut self, old_board: &Board, depth: usize, ply: usize, mut alpha: i32, beta: i32) -> i32 {
-        self.move_sorter.update_killer(None, ply + 2);
+        self.update_killer(None, ply + 2);
 
         if ply > 0 && (old_board.half_move_counter >= 100 || self.past_boards.iter().filter(|p| **p == old_board.zobrist_key).count() == 2) {
             return 0; // 50 move repetition or threefold repetition.
@@ -142,8 +169,20 @@ impl Searcher {
         let in_check = old_board.in_check(old_board.side_to_move);
         let static_eval = eval::evaluate_board(old_board);
 
+        self.update_static_eval(static_eval, ply);
+
+        let improving = if in_check {
+            false
+        } else {
+            let current_ply = self.get_search_entry(ply).expect("couldnt find search entry tf").static_eval;
+            let two_ply_back = self.get_search_entry(ply - 2).unwrap_or(SearchEntry { static_eval: WORST_EVAL, killer_move: None }).static_eval;
+            let four_ply_back = self.get_search_entry(ply - 2).unwrap_or(SearchEntry { static_eval: WORST_EVAL, killer_move: None }).static_eval;
+
+            current_ply > two_ply_back || current_ply > four_ply_back
+        };
+
         // Reverse Futility Pruning
-        if !PV && !in_check && depth < RFP_DEPTH && static_eval - (RFP_THRESHOLD * depth) as i32 >= beta {
+        if !PV && !in_check && depth < RFP_DEPTH && static_eval - (RFP_THRESHOLD * (depth - improving as usize)) as i32 >= beta {
             return static_eval;
         }
 
@@ -232,7 +271,7 @@ impl Searcher {
                     }
 
                     // Killer Heuristic
-                    self.move_sorter.update_killer(Some(*piece_move), ply);
+                    self.update_killer(Some(*piece_move), ply);
                 }
 
                 evaluation_type = EvaluationType::LowerBound;
