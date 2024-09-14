@@ -1,7 +1,7 @@
 use std::{sync::{atomic::{AtomicBool, Ordering}, mpsc::{Receiver, Sender}, Arc}, time::{Duration, Instant}};
 use arrayvec::ArrayVec;
 
-use crate::{engine::search::Searcher, utils::{board::Board, consts::{BEST_EVAL, DEEPEST_PROVEN_LOSS, DEEPEST_PROVEN_WIN, SHALLOWEST_PROVEN_LOSS, SHALLOWEST_PROVEN_WIN, WORST_EVAL}, piece::PieceColor, piece_move::{Move, MoveFlags, MoveSorter}}};
+use crate::{engine::search::Searcher, utils::{board::Board, consts::{BEST_EVAL, DEEPEST_PROVEN_LOSS, DEEPEST_PROVEN_WIN, MAX_DEPTH, SHALLOWEST_PROVEN_LOSS, SHALLOWEST_PROVEN_WIN, WORST_EVAL}, piece::PieceColor, piece_move::{Move, MoveFlags, MoveSorter}}};
 
 #[derive(Debug)]
 pub enum UCICommands {
@@ -157,12 +157,9 @@ pub fn handle_board(receiver: Receiver<UCICommands>, stop_signal: Arc<AtomicBool
 
                 searcher.time_limit = Duration::MAX;
                 searcher.timer = Instant::now();
-                searcher.max_depth = 5;
+                searcher.max_depth = MAX_DEPTH;
                 searcher.nodes = 0;
                 searcher.best_move = None;
-                searcher.finished = true;
-
-                let (alpha, beta) = (WORST_EVAL, BEST_EVAL);
 
                 if time_limit != -1 {
                     // Iterative deepening until time limit reached.
@@ -175,9 +172,9 @@ pub fn handle_board(receiver: Receiver<UCICommands>, stop_signal: Arc<AtomicBool
                 } else if depth != -1 {
                     // Search up to a specified depth.
                     searcher.max_depth = depth as usize;
-                    eval = searcher.search::<true>(&board, searcher.max_depth, 0, alpha, beta);
+                    eval = searcher.search_timed(&board);
                 } else {
-                    // Iterative deepening until `stop` is sent.
+                    // Iterative deepening until `stop` is sent (or depth 127 is reached).
                     searcher.time_limit = Duration::MAX;
                     eval = searcher.search_timed(&board);
                 }
