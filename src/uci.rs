@@ -160,7 +160,6 @@ pub fn handle_board(receiver: Receiver<UCICommands>, stop_signal: Arc<AtomicBool
                 searcher.max_depth = 5;
                 searcher.nodes = 0;
                 searcher.best_move = None;
-                searcher.finished = true;
 
                 let (alpha, beta) = (WORST_EVAL, BEST_EVAL);
 

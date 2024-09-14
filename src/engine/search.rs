@@ -25,9 +25,7 @@ pub struct Searcher {
     /// The number of nodes searched.
     pub nodes: usize,
     /// The best move searched.
-    pub best_move: Option<Move>,
-    /// Whether or not the search finished.
-    pub finished: bool
+    pub best_move: Option<Move>
 }
 
 impl Searcher {
@@ -44,8 +42,7 @@ impl Searcher {
             stop_signal,
 
             nodes: 0,
-            best_move: None,
-            finished: true
+            best_move: None
         }
     }
 
@@ -61,27 +58,50 @@ impl Searcher {
 
         self.max_depth = 0;
         for _ in 0..=MAX_DEPTH {
+            self.max_depth += 1;
+            let score = self.aspiration_windows(board, self.max_depth, eval);
+
             if self.search_cancelled() {
                 break;
-            }
-
-            self.nodes = 0;
-            self.finished = true;
-            self.max_depth += 1;
-
-            let latest_eval = self.search::<true>(board, self.max_depth, 0, WORST_EVAL, BEST_EVAL);
-
-            if self.finished {
-                eval = latest_eval;
-                best_move = self.best_move;
             } else {
-                break;
-            }
+                eval = score;
+                best_move = self.best_move;
+            } 
         }
 
         self.best_move = best_move;
 
         eval
+    }
+
+    /// Iteratively reduces the window for the search to yield more cutoffs.
+    pub fn aspiration_windows(&mut self, board: &Board, depth: usize, prev_score: i32) -> i32 {
+        let mut delta = 25;
+        let (mut alpha, mut beta) = (WORST_EVAL, BEST_EVAL);
+
+        if depth >= 4 {
+            alpha = prev_score - delta;
+            beta = prev_score + delta;
+        }
+
+        loop {
+            // self.nodes = 0;
+
+            let search_score = self.search::<true>(board, depth, 0, alpha, beta);
+            if self.search_cancelled() {
+                return search_score;
+            }
+
+            if search_score <= alpha {
+                alpha -= delta;
+            } else if search_score >= beta {
+                beta += delta;
+            } else {
+                return search_score;
+            }
+
+            delta *= 2;
+        }
     }
 
     /// Searches for a move with the highest evaluation with a fixed depth and a hard time limit.
@@ -173,7 +193,6 @@ impl Searcher {
             }
 
             if self.search_cancelled() {
-                self.finished = false;
                 return best_score;
             }
 
