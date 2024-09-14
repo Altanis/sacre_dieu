@@ -228,7 +228,7 @@ impl Searcher {
                 // Full Window Search
                 score = -self.search::<PV>(&board, depth - 1 + extension, ply + 1, -beta, -alpha);
             } else {
-                let reduction = if !PV && !in_check && num_moves > LMR_MOVE_THRESHOLD {
+                let reduction = if !in_check && num_moves > LMR_MOVE_THRESHOLD {
                     LMR_REDUCTION_TABLE[depth][num_moves]
                 } else {
                     0_f32

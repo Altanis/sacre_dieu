@@ -5,7 +5,7 @@
 </a>
 
 A UCI compliant chess engine that may or may not be French.
-<!-- todo depth reduction nmp, improving lmr, reduction in pv node -->
+<!-- todo improving lmr, reduction in pv node -->
 
 ## Features
 - [x] FEN Parser
