@@ -187,9 +187,14 @@ impl Searcher {
         }
 
         // Null Move Pruning
-        if !PV && !in_check && (static_eval + 25 * improving as i32) >= beta {
+        if !PV && !in_check && static_eval >= beta {
+            let mut depth = (depth as isize - 3) - (depth as isize / 3);
+            if improving {
+                depth -= 1;
+            }
+
             let nmp_board = old_board.make_null_move();
-            let nmp_score = -self.search::<false>(&nmp_board, ((depth as isize - 3) - (depth as isize / 3)).max(0) as usize, ply + 1, -beta, -alpha);
+            let nmp_score = -self.search::<false>(&nmp_board, depth.max(0) as usize, ply + 1, -beta, -alpha);
             if nmp_score >= beta {
                 return nmp_score;
             }
