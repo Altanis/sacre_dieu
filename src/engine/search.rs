@@ -13,8 +13,10 @@ pub struct Searcher {
     /// A struct which sorts moves.
     pub move_sorter: MoveSorter,
     
-    /// The time constraint of the search.
-    pub time_limit: Duration,
+    /// The soft time constraint of the search.
+    pub soft_tm: Duration,
+    /// The hard time constraint of the search.
+    pub hard_tm: Duration,
     /// The timer associated with the search.
     pub timer: Instant,
     /// The current depth of the search.
@@ -32,13 +34,14 @@ pub struct Searcher {
 
 impl Searcher {
     /// Initializes a new searcher.
-    pub fn new(time_limit: Duration, max_depth: usize, stop_signal: Arc<AtomicBool>) -> Self {
+    pub fn new(soft_tm: Duration, hard_tm: Duration, max_depth: usize, stop_signal: Arc<AtomicBool>) -> Self {
         Searcher {
             past_boards: Vec::new(),
             transposition_table: TranspositionTable::from_mb(16),
             move_sorter: MoveSorter::new(),
 
-            time_limit,
+            soft_tm,
+            hard_tm,
             timer: Instant::now(),
             depth: 0,
             max_depth,
@@ -51,7 +54,7 @@ impl Searcher {
 
     /// Whether or not the search has been cancelled.
     pub fn search_cancelled(&self) -> bool {
-        self.stop_signal.load(Ordering::Relaxed) || self.timer.elapsed() > self.time_limit
+        self.stop_signal.load(Ordering::Relaxed) || self.timer.elapsed() > self.hard_tm
     }
 
     /// Searches for a move with a time constraint.
@@ -61,6 +64,11 @@ impl Searcher {
 
         self.depth = 0;
         for _ in 0..=self.max_depth {
+            // Soft Time Control
+            if self.timer.elapsed() >= self.soft_tm {
+                break;
+            }
+
             self.depth += 1;
             let score = self.aspiration_windows(board, self.depth, eval);
             // let score = self.search::<true>(board, self.depth, 0, WORST_EVAL, BEST_EVAL);

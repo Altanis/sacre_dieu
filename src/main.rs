@@ -73,7 +73,7 @@ fn main() {
 
     let args: Vec<String> = std::env::args().collect();
     if args.get(1) == Some(&"bench".to_string()) {
-        let mut searcher = Searcher::new(Duration::MAX, 5, Arc::new(AtomicBool::new(false)));
+        let mut searcher = Searcher::new(Duration::MAX, Duration::MAX, 5, Arc::new(AtomicBool::new(false)));
         let mut npsa = vec![];
         let mut nodes = 0;
     

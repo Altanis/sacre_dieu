@@ -9,7 +9,7 @@ pub enum UCICommands {
     ForceMove(String),
     NewGame,
     ResizeTT(usize),
-    StartSearch(i64, i64, u64, u64), // todo move stop_signal to handle_search function
+    StartSearch(i64, i64, u64, u64, u64, u64),
     PrintBoard
 }
 
@@ -70,36 +70,30 @@ pub fn handle_command(command: &str, sender: Sender<UCICommands>, stop_signal: A
             }
         },
         "go" => {
-            if let Some(token) = args.next() {
+            let (
+                mut time,
+                mut depth,
+                mut wtime,
+                mut winc,
+                mut btime,
+                mut binc
+            ) = (-1, -1, 0, 0, 0, 0);
+
+            while let Some(token) = args.next() {
                 match token {
-                    "infinite" => sender.send(UCICommands::StartSearch(-1, -1, 0, 0)).expect("failed to send startsearch cmd"),
-                    "movetime" => {
-                        let time = args.next().expect("missing time argument").parse::<i64>().expect("failed to parse time argument");
-                        sender.send(UCICommands::StartSearch(time, -1, 0, 0)).expect("failed to send startsearch cmd");
-                    },
-                    "depth" => {
-                        let depth = args.next().expect("missing depth argument").parse::<i64>().expect("failed to parse depth argument");
-                        sender.send(UCICommands::StartSearch(-1, depth, 0, 0)).expect("failed to send startsearch cmd");
-                    },
-                    "wtime" => {
-                        let white_ms_time = args.next().expect("missing wtime arg").parse::<u64>().expect("failed to parse wtime");
-                        let _ = args.next().expect("missing btime label");
-                        let black_ms_time = args.next().expect("missing btime arg").parse::<u64>().expect("failed to parse btime");
-
-                        sender.send(UCICommands::StartSearch(-1, -1, white_ms_time, black_ms_time)).expect("wtime invalid");
-                    },
-                    "btime" => {
-                        let black_ms_time = args.next().expect("missing btime arg").parse::<u64>().expect("failed to parse btime");
-                        let _ = args.next().expect("missing wtime label");
-                        let white_ms_time = args.next().expect("missing wtime arg").parse::<u64>().expect("failed to parse wtime");
-
-                        sender.send(UCICommands::StartSearch(-1, -1, white_ms_time, black_ms_time)).expect("btime invalid");
-                    },
-                    _ => sender.send(UCICommands::StartSearch(-1, 5, 0, 0)).expect("failed to send startsearch cmd")
+                    "infinite" => (time, depth, wtime, winc, btime, binc) = (-1, -1, 0, 0, 0, 0),
+                    "movetime" => time = args.next().expect("missing time argument").parse::<i64>().expect("failed to parse time argument"),
+                    "depth" => depth = args.next().expect("missing depth argument").parse::<i64>().expect("failed to parse depth argument"),
+                    "wtime" => wtime = args.next().expect("missing wtime arg").parse::<u64>().expect("failed to parse wtime"),
+                    "btime" => btime = args.next().expect("missing btime argument").parse::<u64>().expect("failed to parse btime argument"),
+                    "winc" => winc = args.next().expect("missing winc argument").parse::<u64>().expect("failed to parse winc argument"),
+                    "binc" => binc = args.next().expect("missing binc argument").parse::<u64>().expect("failed to parse binc argument"),
+                    _ => {}
                 }
-            } else {
-                println!("provide an argument (infinite/movetime/depth/wtime/btime)");
             }
+
+            // dbg!(time, depth, wtime, winc, btime, binc);
+            sender.send(UCICommands::StartSearch(time, depth, wtime, winc, btime, binc)).expect("failed to send startsearch cmd");
         },
         "d" => sender.send(UCICommands::PrintBoard).expect("failed to send printboard cmd"),
         "quit" => {
@@ -112,7 +106,7 @@ pub fn handle_command(command: &str, sender: Sender<UCICommands>, stop_signal: A
 
 pub fn handle_board(receiver: Receiver<UCICommands>, stop_signal: Arc<AtomicBool>) {
     let mut board = Board::new("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-    let mut searcher = Searcher::new(Duration::MAX, 5, stop_signal.clone());
+    let mut searcher = Searcher::new(Duration::MAX, Duration::MAX, 5, stop_signal.clone());
 
     while let Ok(message) = receiver.recv() {
         match message {
@@ -146,16 +140,17 @@ pub fn handle_board(receiver: Receiver<UCICommands>, stop_signal: Arc<AtomicBool
             UCICommands::ResizeTT(mb) => {
                 searcher.transposition_table.resize_mb(mb);
             },
-            UCICommands::StartSearch(time_limit, depth, white_time, black_time) => {
+            UCICommands::StartSearch(time_limit, depth, white_time, winc, black_time, binc) => {
                 stop_signal.store(false, Ordering::Relaxed);
 
                 let engine_time_left = if board.side_to_move == PieceColor::White { white_time } else { black_time };
+                let engine_inc_left = if board.side_to_move == PieceColor::White { winc } else { binc };
                 
                 let mut eval = 0;
                 let mut timer: Instant = Instant::now();
-                let (mut nodes, mut max_depth) = (0, 0);
 
-                searcher.time_limit = Duration::MAX;
+                searcher.soft_tm = Duration::MAX;
+                searcher.hard_tm = Duration::MAX;
                 searcher.timer = Instant::now();
                 searcher.max_depth = MAX_DEPTH;
                 searcher.nodes = 0;
@@ -163,11 +158,13 @@ pub fn handle_board(receiver: Receiver<UCICommands>, stop_signal: Arc<AtomicBool
 
                 if time_limit != -1 {
                     // Iterative deepening until time limit reached.
-                    searcher.time_limit = Duration::from_millis(time_limit as u64);
+                    searcher.hard_tm = Duration::from_millis(time_limit as u64);
                     eval = searcher.search_timed(&board);
                 } else if engine_time_left != 0 {
-                    // hard limit by dividing engine_time_left by 20-30, then by using linreg, then softlimit; sprt against eachother
-                    searcher.time_limit = Duration::from_millis(engine_time_left / 20);
+                    // Iterative deepening using soft and hard time limits.
+                    searcher.soft_tm = Duration::from_millis(engine_time_left / 20 + engine_inc_left / 2);
+                    searcher.hard_tm = Duration::from_millis(engine_time_left / 4);
+
                     eval = searcher.search_timed(&board);
                 } else if depth != -1 {
                     // Search up to a specified depth.
@@ -175,11 +172,11 @@ pub fn handle_board(receiver: Receiver<UCICommands>, stop_signal: Arc<AtomicBool
                     eval = searcher.search_timed(&board);
                 } else {
                     // Iterative deepening until `stop` is sent (or depth 127 is reached).
-                    searcher.time_limit = Duration::MAX;
+                    searcher.hard_tm = Duration::MAX;
                     eval = searcher.search_timed(&board);
                 }
 
-                (timer, nodes, max_depth) = (searcher.timer, searcher.nodes, searcher.max_depth);
+                let (timer, nodes, depth) = (searcher.timer, searcher.nodes, searcher.depth);
 
                 let ms_time = timer.elapsed().as_millis();
                 let nps = nodes as f64 / (ms_time as f64 / 1000.0);
@@ -195,12 +192,12 @@ pub fn handle_board(receiver: Receiver<UCICommands>, stop_signal: Arc<AtomicBool
 
                     if (SHALLOWEST_PROVEN_LOSS..=DEEPEST_PROVEN_LOSS).contains(&eval) {
                         let mate_in = (SHALLOWEST_PROVEN_LOSS - eval) / 2;
-                        reply(&format!("info depth {} score mate {} time {} nodes {} nps {}", max_depth, mate_in, ms_time, nodes, nps));
+                        reply(&format!("info depth {} score mate {} time {} nodes {} nps {}", depth, mate_in, ms_time, nodes, nps));
                     } else if (DEEPEST_PROVEN_WIN..=SHALLOWEST_PROVEN_WIN).contains(&eval) {
                         let mate_in = (SHALLOWEST_PROVEN_WIN - eval) / 2;
-                        reply(&format!("info depth {} score mate {} time {} nodes {} nps {}", max_depth, mate_in, ms_time, nodes, nps));
+                        reply(&format!("info depth {} score mate {} time {} nodes {} nps {}", depth, mate_in, ms_time, nodes, nps));
                     } else {
-                        reply(&format!("info depth {} score cp {} time {} nodes {} nps {}", max_depth, eval, ms_time, nodes, nps));
+                        reply(&format!("info depth {} score cp {} time {} nodes {} nps {}", depth, eval, ms_time, nodes, nps));
                     }
 
                     reply(&format!("bestmove {}", best_move.to_uci()));
