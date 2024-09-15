@@ -228,6 +228,11 @@ impl Searcher {
                 continue;
             }
 
+            // PVS SEE Pruning
+            if !MoveSorter::static_exchange_evaluation(&old_board, *piece_move, if is_quiet { -50 * depth as i32 } else { -90 * depth as i32 }) {
+                continue;
+            }
+
             let Some(board) = old_board.make_move(piece_move, false) else { continue; };
 
             self.nodes += 1;
