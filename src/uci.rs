@@ -1,7 +1,7 @@
 use std::{sync::{atomic::{AtomicBool, Ordering}, mpsc::{Receiver, Sender}, Arc}, time::{Duration, Instant}};
 use arrayvec::ArrayVec;
 
-use crate::{engine::search::Searcher, utils::{board::Board, consts::{BEST_EVAL, DEEPEST_PROVEN_LOSS, DEEPEST_PROVEN_WIN, MAX_DEPTH, SHALLOWEST_PROVEN_LOSS, SHALLOWEST_PROVEN_WIN, WORST_EVAL}, piece::PieceColor, piece_move::{Move, MoveFlags, MoveSorter}}};
+use crate::{engine::search::{SearchEntry, Searcher}, utils::{board::Board, consts::{BEST_EVAL, DEEPEST_PROVEN_LOSS, DEEPEST_PROVEN_WIN, MAX_DEPTH, SHALLOWEST_PROVEN_LOSS, SHALLOWEST_PROVEN_WIN, WORST_EVAL}, piece::PieceColor, piece_move::{Move, MoveFlags, MoveSorter}}};
 
 #[derive(Debug)]
 pub enum UCICommands {
@@ -9,7 +9,7 @@ pub enum UCICommands {
     ForceMove(String),
     NewGame,
     ResizeTT(usize),
-    StartSearch(i64, i64, u64, u64, u64, u64),
+    StartSearch(i64, i64, u64, u64, u64, u64, isize),
     PrintBoard
 }
 
@@ -76,24 +76,26 @@ pub fn handle_command(command: &str, sender: Sender<UCICommands>, stop_signal: A
                 mut wtime,
                 mut winc,
                 mut btime,
-                mut binc
-            ) = (-1, -1, 0, 0, 0, 0);
+                mut binc,
+                mut nodes
+            ) = (-1, -1, 0, 0, 0, 0, -1);
 
             while let Some(token) = args.next() {
                 match token {
-                    "infinite" => (time, depth, wtime, winc, btime, binc) = (-1, -1, 0, 0, 0, 0),
+                    "infinite" => (time, depth, wtime, winc, btime, binc, nodes) = (-1, -1, 0, 0, 0, 0, -1),
                     "movetime" => time = args.next().expect("missing time argument").parse::<i64>().expect("failed to parse time argument"),
                     "depth" => depth = args.next().expect("missing depth argument").parse::<i64>().expect("failed to parse depth argument"),
                     "wtime" => wtime = args.next().expect("missing wtime arg").parse::<u64>().expect("failed to parse wtime"),
                     "btime" => btime = args.next().expect("missing btime argument").parse::<u64>().expect("failed to parse btime argument"),
                     "winc" => winc = args.next().expect("missing winc argument").parse::<u64>().expect("failed to parse winc argument"),
                     "binc" => binc = args.next().expect("missing binc argument").parse::<u64>().expect("failed to parse binc argument"),
+                    "nodes" => nodes = args.next().expect("missing nodes argument").parse::<isize>().expect("failed to parse nodes argument"),
                     _ => {}
                 }
             }
 
             // dbg!(time, depth, wtime, winc, btime, binc);
-            sender.send(UCICommands::StartSearch(time, depth, wtime, winc, btime, binc)).expect("failed to send startsearch cmd");
+            sender.send(UCICommands::StartSearch(time, depth, wtime, winc, btime, binc, nodes)).expect("failed to send startsearch cmd");
         },
         "d" => sender.send(UCICommands::PrintBoard).expect("failed to send printboard cmd"),
         "quit" => {
@@ -113,6 +115,7 @@ pub fn handle_board(receiver: Receiver<UCICommands>, stop_signal: Arc<AtomicBool
             UCICommands::NewGame => {
                 searcher.transposition_table.clear();
                 searcher.past_boards.clear();
+                searcher.search_stack = std::array::from_fn(|_| SearchEntry::default());
                 searcher.move_sorter = MoveSorter::new();
             },
             UCICommands::SetPosition(pos) => board = Board::new(pos.as_str()),
@@ -140,7 +143,7 @@ pub fn handle_board(receiver: Receiver<UCICommands>, stop_signal: Arc<AtomicBool
             UCICommands::ResizeTT(mb) => {
                 searcher.transposition_table.resize_mb(mb);
             },
-            UCICommands::StartSearch(time_limit, depth, white_time, winc, black_time, binc) => {
+            UCICommands::StartSearch(time_limit, depth, white_time, winc, black_time, binc, max_nodes) => {
                 stop_signal.store(false, Ordering::Relaxed);
 
                 let engine_time_left = if board.side_to_move == PieceColor::White { white_time } else { black_time };
@@ -169,6 +172,10 @@ pub fn handle_board(receiver: Receiver<UCICommands>, stop_signal: Arc<AtomicBool
                 } else if depth != -1 {
                     // Search up to a specified depth.
                     searcher.max_depth = depth as usize;
+                    eval = searcher.search_timed(&board);
+                } else if max_nodes != -1 {
+                    // Search up to a specified node count.
+                    searcher.max_nodes = max_nodes;
                     eval = searcher.search_timed(&board);
                 } else {
                     // Iterative deepening until `stop` is sent (or depth 127 is reached).
