@@ -68,6 +68,121 @@ const POSITIONS: &[&str] = &[
     "2r2b2/5p2/5k2/p1r1pP2/P2pB3/1P3P2/K1P3R1/7R w - - 23 93",
 ];
 
+const commands: &'static str = "position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6
+go nodes 520610
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6
+go nodes 425453
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5
+go nodes 433512
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5
+go nodes 830599
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5
+go nodes 774438
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3
+go nodes 488502
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3
+go nodes 474795
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5
+go nodes 538377
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5
+go nodes 484309
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6
+go nodes 361097
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6
+go nodes 438537
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6
+go nodes 459265
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1
+go nodes 446206
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3
+go nodes 987879
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1
+go nodes 333439
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1 e8f8
+go nodes 513511
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1 e8f8 g2f3
+go nodes 513658
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1 e8f8 g2f3 a8e8
+go nodes 506815
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1 e8f8 g2f3 a8e8 e1g1
+go nodes 380135
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1 e8f8 g2f3 a8e8 e1g1 g7g6
+go nodes 313250
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1 e8f8 g2f3 a8e8 e1g1 g7g6 d1d7
+go nodes 586471
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1 e8f8 g2f3 a8e8 e1g1 g7g6 d1d7 e8e7
+go nodes 356970
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1 e8f8 g2f3 a8e8 e1g1 g7g6 d1d7 e8e7 g1d1
+go nodes 243952
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1 e8f8 g2f3 a8e8 e1g1 g7g6 d1d7 e8e7 g1d1 h7h5
+go nodes 234267
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1 e8f8 g2f3 a8e8 e1g1 g7g6 d1d7 e8e7 g1d1 h7h5 d1d4
+go nodes 214511
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1 e8f8 g2f3 a8e8 e1g1 g7g6 d1d7 e8e7 g1d1 h7h5 d1d4 a7a5
+go nodes 263100
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1 e8f8 g2f3 a8e8 e1g1 g7g6 d1d7 e8e7 g1d1 h7h5 d1d4 a7a5 c1d2
+go nodes 261900
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1 e8f8 g2f3 a8e8 e1g1 g7g6 d1d7 e8e7 g1d1 h7h5 d1d4 a7a5 c1d2 h5h4
+go nodes 526728
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1 e8f8 g2f3 a8e8 e1g1 g7g6 d1d7 e8e7 g1d1 h7h5 d1d4 a7a5 c1d2 h5h4 d7d8
+go nodes 228977
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1 e8f8 g2f3 a8e8 e1g1 g7g6 d1d7 e8e7 g1d1 h7h5 d1d4 a7a5 c1d2 h5h4 d7d8 e7e8
+go nodes 257709
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1 e8f8 g2f3 a8e8 e1g1 g7g6 d1d7 e8e7 g1d1 h7h5 d1d4 a7a5 c1d2 h5h4 d7d8 e7e8 d4d7
+go nodes 256583
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1 e8f8 g2f3 a8e8 e1g1 g7g6 d1d7 e8e7 g1d1 h7h5 d1d4 a7a5 c1d2 h5h4 d7d8 e7e8 d4d7 e8d8
+go nodes 210601
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1 e8f8 g2f3 a8e8 e1g1 g7g6 d1d7 e8e7 g1d1 h7h5 d1d4 a7a5 c1d2 h5h4 d7d8 e7e8 d4d7 e8d8 d7d8
+go nodes 251074
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1 e8f8 g2f3 a8e8 e1g1 g7g6 d1d7 e8e7 g1d1 h7h5 d1d4 a7a5 c1d2 h5h4 d7d8 e7e8 d4d7 e8d8 d7d8 f8g7
+go nodes 207354
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1 e8f8 g2f3 a8e8 e1g1 g7g6 d1d7 e8e7 g1d1 h7h5 d1d4 a7a5 c1d2 h5h4 d7d8 e7e8 d4d7 e8d8 d7d8 f8g7 d8h8
+go nodes 217511
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1 e8f8 g2f3 a8e8 e1g1 g7g6 d1d7 e8e7 g1d1 h7h5 d1d4 a7a5 c1d2 h5h4 d7d8 e7e8 d4d7 e8d8 d7d8 f8g7 d8h8 g7h8
+go nodes 683607
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1 e8f8 g2f3 a8e8 e1g1 g7g6 d1d7 e8e7 g1d1 h7h5 d1d4 a7a5 c1d2 h5h4 d7d8 e7e8 d4d7 e8d8 d7d8 f8g7 d8h8 g7h8 d2e3
+go nodes 450792
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1 e8f8 g2f3 a8e8 e1g1 g7g6 d1d7 e8e7 g1d1 h7h5 d1d4 a7a5 c1d2 h5h4 d7d8 e7e8 d4d7 e8d8 d7d8 f8g7 d8h8 g7h8 d2e3 h8g7
+go nodes 334805
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1 e8f8 g2f3 a8e8 e1g1 g7g6 d1d7 e8e7 g1d1 h7h5 d1d4 a7a5 c1d2 h5h4 d7d8 e7e8 d4d7 e8d8 d7d8 f8g7 d8h8 g7h8 d2e3 h8g7 e3f4
+go nodes 276570
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1 e8f8 g2f3 a8e8 e1g1 g7g6 d1d7 e8e7 g1d1 h7h5 d1d4 a7a5 c1d2 h5h4 d7d8 e7e8 d4d7 e8d8 d7d8 f8g7 d8h8 g7h8 d2e3 h8g7 e3f4 g7f6
+go nodes 175492
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1 e8f8 g2f3 a8e8 e1g1 g7g6 d1d7 e8e7 g1d1 h7h5 d1d4 a7a5 c1d2 h5h4 d7d8 e7e8 d4d7 e8d8 d7d8 f8g7 d8h8 g7h8 d2e3 h8g7 e3f4 g7f6 a2a4
+go nodes 167919
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1 e8f8 g2f3 a8e8 e1g1 g7g6 d1d7 e8e7 g1d1 h7h5 d1d4 a7a5 c1d2 h5h4 d7d8 e7e8 d4d7 e8d8 d7d8 f8g7 d8h8 g7h8 d2e3 h8g7 e3f4 g7f6 a2a4 g6g5
+go nodes 161002
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1 e8f8 g2f3 a8e8 e1g1 g7g6 d1d7 e8e7 g1d1 h7h5 d1d4 a7a5 c1d2 h5h4 d7d8 e7e8 d4d7 e8d8 d7d8 f8g7 d8h8 g7h8 d2e3 h8g7 e3f4 g7f6 a2a4 g6g5 f4g4
+go nodes 444248
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1 e8f8 g2f3 a8e8 e1g1 g7g6 d1d7 e8e7 g1d1 h7h5 d1d4 a7a5 c1d2 h5h4 d7d8 e7e8 d4d7 e8d8 d7d8 f8g7 d8h8 g7h8 d2e3 h8g7 e3f4 g7f6 a2a4 g6g5 f4g4 f6g6
+go nodes 193591
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1 e8f8 g2f3 a8e8 e1g1 g7g6 d1d7 e8e7 g1d1 h7h5 d1d4 a7a5 c1d2 h5h4 d7d8 e7e8 d4d7 e8d8 d7d8 f8g7 d8h8 g7h8 d2e3 h8g7 e3f4 g7f6 a2a4 g6g5 f4g4 f6g6 f3f4
+go nodes 191320
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1 e8f8 g2f3 a8e8 e1g1 g7g6 d1d7 e8e7 g1d1 h7h5 d1d4 a7a5 c1d2 h5h4 d7d8 e7e8 d4d7 e8d8 d7d8 f8g7 d8h8 g7h8 d2e3 h8g7 e3f4 g7f6 a2a4 g6g5 f4g4 f6g6 f3f4 f7f5
+go nodes 154409
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1 e8f8 g2f3 a8e8 e1g1 g7g6 d1d7 e8e7 g1d1 h7h5 d1d4 a7a5 c1d2 h5h4 d7d8 e7e8 d4d7 e8d8 d7d8 f8g7 d8h8 g7h8 d2e3 h8g7 e3f4 g7f6 a2a4 g6g5 f4g4 f6g6 f3f4 f7f5 g4f3
+go nodes 173441
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1 e8f8 g2f3 a8e8 e1g1 g7g6 d1d7 e8e7 g1d1 h7h5 d1d4 a7a5 c1d2 h5h4 d7d8 e7e8 d4d7 e8d8 d7d8 f8g7 d8h8 g7h8 d2e3 h8g7 e3f4 g7f6 a2a4 g6g5 f4g4 f6g6 f3f4 f7f5 g4f3 g5f4
+go nodes 169030
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1 e8f8 g2f3 a8e8 e1g1 g7g6 d1d7 e8e7 g1d1 h7h5 d1d4 a7a5 c1d2 h5h4 d7d8 e7e8 d4d7 e8d8 d7d8 f8g7 d8h8 g7h8 d2e3 h8g7 e3f4 g7f6 a2a4 g6g5 f4g4 f6g6 f3f4 f7f5 g4f3 g5f4 f3f4
+go nodes 481978
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1 e8f8 g2f3 a8e8 e1g1 g7g6 d1d7 e8e7 g1d1 h7h5 d1d4 a7a5 c1d2 h5h4 d7d8 e7e8 d4d7 e8d8 d7d8 f8g7 d8h8 g7h8 d2e3 h8g7 e3f4 g7f6 a2a4 g6g5 f4g4 f6g6 f3f4 f7f5 g4f3 g5f4 f3f4 g6f6
+go nodes 183120
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1 e8f8 g2f3 a8e8 e1g1 g7g6 d1d7 e8e7 g1d1 h7h5 d1d4 a7a5 c1d2 h5h4 d7d8 e7e8 d4d7 e8d8 d7d8 f8g7 d8h8 g7h8 d2e3 h8g7 e3f4 g7f6 a2a4 g6g5 f4g4 f6g6 f3f4 f7f5 g4f3 g5f4 f3f4 g6f6 c3c4
+go nodes 363257
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1 e8f8 g2f3 a8e8 e1g1 g7g6 d1d7 e8e7 g1d1 h7h5 d1d4 a7a5 c1d2 h5h4 d7d8 e7e8 d4d7 e8d8 d7d8 f8g7 d8h8 g7h8 d2e3 h8g7 e3f4 g7f6 a2a4 g6g5 f4g4 f6g6 f3f4 f7f5 g4f3 g5f4 f3f4 g6f6 c3c4 c6c5
+go nodes 151059
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1 e8f8 g2f3 a8e8 e1g1 g7g6 d1d7 e8e7 g1d1 h7h5 d1d4 a7a5 c1d2 h5h4 d7d8 e7e8 d4d7 e8d8 d7d8 f8g7 d8h8 g7h8 d2e3 h8g7 e3f4 g7f6 a2a4 g6g5 f4g4 f6g6 f3f4 f7f5 g4f3 g5f4 f3f4 g6f6 c3c4 c6c5 c2c3
+go nodes 196223
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1 e8f8 g2f3 a8e8 e1g1 g7g6 d1d7 e8e7 g1d1 h7h5 d1d4 a7a5 c1d2 h5h4 d7d8 e7e8 d4d7 e8d8 d7d8 f8g7 d8h8 g7h8 d2e3 h8g7 e3f4 g7f6 a2a4 g6g5 f4g4 f6g6 f3f4 f7f5 g4f3 g5f4 f3f4 g6f6 c3c4 c6c5 c2c3 c7c6
+go nodes 176870
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1 e8f8 g2f3 a8e8 e1g1 g7g6 d1d7 e8e7 g1d1 h7h5 d1d4 a7a5 c1d2 h5h4 d7d8 e7e8 d4d7 e8d8 d7d8 f8g7 d8h8 g7h8 d2e3 h8g7 e3f4 g7f6 a2a4 g6g5 f4g4 f6g6 f3f4 f7f5 g4f3 g5f4 f3f4 g6f6 c3c4 c6c5 c2c3 c7c6 f2f3
+go nodes 121738
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1 e8f8 g2f3 a8e8 e1g1 g7g6 d1d7 e8e7 g1d1 h7h5 d1d4 a7a5 c1d2 h5h4 d7d8 e7e8 d4d7 e8d8 d7d8 f8g7 d8h8 g7h8 d2e3 h8g7 e3f4 g7f6 a2a4 g6g5 f4g4 f6g6 f3f4 f7f5 g4f3 g5f4 f3f4 g6f6 c3c4 c6c5 c2c3 c7c6 f2f3 f6e6
+go nodes 145269
+position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 moves g5f6 e7f6 d4d5 e6d5 d1d5 f6c3 b2c3 d8d5 c4d5 b8c6 d5c6 b7c6 e1c1 h5f3 h1e1 e8f8 g2f3 a8e8 e1g1 g7g6 d1d7 e8e7 g1d1 h7h5 d1d4 a7a5 c1d2 h5h4 d7d8 e7e8 d4d7 e8d8 d7d8 f8g7 d8h8 g7h8 d2e3 h8g7 e3f4 g7f6 a2a4 g6g5 f4g4 f6g6 f3f4 f7f5 g4f3 g5f4 f3f4 g6f6 c3c4 c6c5 c2c3 c7c6 f2f3 f6e6 f4e3
+go nodes 110949";
+
 fn main() {
     std::env::set_var("RUST_BACKTRACE", "1");
 
@@ -104,6 +219,13 @@ fn main() {
 
     let (sender, receiver) = channel();
     let _ = std::thread::spawn(move || uci::handle_board(receiver, stop_signal));
+
+    // let cmds = commands.split("\n");
+    // for cmd in cmds {
+    //     println!("{}", cmd);
+    //     uci::handle_command(cmd.trim(), sender.clone(), stop_signal_clone.clone());
+    //     std::thread::sleep_ms(1000);
+    // }
 
     let mut buffer = String::new();
     while std::io::stdin().read_line(&mut buffer).unwrap() > 0 {

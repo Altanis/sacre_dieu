@@ -3,46 +3,6 @@ import chess.pgn
 import io
 import re
 
-def clean_pgn(pgn: str) -> str:
-    """Remove comments and annotations from PGN."""
-    cleaned_pgn = re.sub(r"\{[^}]*\}", "", pgn)
-    return cleaned_pgn.strip()
-
-def pgn_to_uci_command(starting_fen: str, pgn: str) -> str:
-    # Load the starting FEN into a board
-    board = chess.Board(starting_fen)
-    
-    # Clean the PGN to remove comments
-    cleaned_pgn = clean_pgn(pgn)
-    
-    # Use StringIO to create a file-like object from the cleaned PGN string
-    pgn_io = io.StringIO(cleaned_pgn)
-    
-    # Read the PGN
-    print("Reading PGN...")
-    game = chess.pgn.read_game(pgn_io)
-    
-    if game is None:
-        raise ValueError("Failed to parse PGN")
-    
-    # Extract the moves from the PGN
-    moves = []
-    node = game
-    while node.variations:
-        next_node = node.variation(0)
-        move = next_node.move
-        if move not in board.legal_moves:
-            raise ValueError(f"Illegal move {move} for the current board position")
-        moves.append(move.uci())  # Use UCI notation directly for the moves
-        board.push(move)  # Update the board
-        node = next_node
-    
-    # Create the UCI command
-    uci_command = f"position fen {starting_fen} moves {' '.join(moves)}"
-    
-    return uci_command
-
-# Example usage
 starting_fen = "rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1"
 pgn = """
 [Event "?"]
@@ -89,8 +49,31 @@ pgn = """
 26. c4 {-0.23 35/0 131 363257} c5 {+0.25 38/0 47 151059}
 27. c3 {-0.25 37/0 70 196223} c6 {+0.25 39/0 50 176870}
 28. f3 {-0.25 39/0 37 121738} Ke6 {+0.25 42/0 44 145269}
-29. Ke3 {-0.25 40/0 34 110949, Black's connection stalls} 1-0
+29. Ke3 {-0.25 40/0 34 110949}
 """
 
+move_info = []
+
+def pgn_to_uci_command(starting_fen: str, pgn: str) -> str:
+    _, per_move_pgn = pgn.strip().split("\n\n")
+    for move in per_move_pgn:
+        _, real_move_str = move.split(". ")
+        movedata = re.findall(r'[^{} ]+|\{[^}]+\}', real_move_str.strip())
+
+        if len(movedata) == 4:
+            move1_nodes = movedata[1].split(" ")[3]
+            move2_nodes = movedata[3].split(" ")[3]
+
+            move_info.append({ "move": movedata[0], "nodes": int(move1_nodes[:-1]) })
+            move_info.append({ "move": movedata[2], "nodes": int(move2_nodes[:-1]) })
+        elif len(movedata) == 2:
+            move1_nodes = movedata[1].split(" ")[3]
+            move_info.append({ "move": movedata[0], "nodes": int(move1_nodes[:-1]) })
+        else:
+            print("disaster")
+
+    "e"
+
 uci_command = pgn_to_uci_command(starting_fen, pgn)
+print(move_info)
 print(uci_command)

@@ -34,6 +34,8 @@ pub struct Searcher {
     pub depth: usize,
     /// The maximum depth of the search.
     pub max_depth: usize,
+    /// The maximum number of nodes to search (-1 represents infinity).
+    pub max_nodes: isize,
     /// A boolean signalling when to stop a search.
     pub stop_signal: Arc<AtomicBool>,
     
@@ -57,6 +59,7 @@ impl Searcher {
             timer: Instant::now(),
             depth: 0,
             max_depth,
+            max_nodes: -1,
             stop_signal,
 
             nodes: 0,
@@ -66,7 +69,9 @@ impl Searcher {
 
     /// Whether or not the search has been cancelled.
     pub fn search_cancelled(&self) -> bool {
-        self.stop_signal.load(Ordering::Relaxed) || self.timer.elapsed() > self.hard_tm
+        (self.max_nodes > 0 && self.nodes >= self.max_nodes as usize)
+        || self.stop_signal.load(Ordering::Relaxed) 
+        || self.timer.elapsed() > self.hard_tm
     }
 
     /// Gets an entry at a ply in the search stack.
@@ -143,6 +148,14 @@ impl Searcher {
 
     /// Searches for a move with the highest evaluation with a fixed depth and a hard time limit.
     pub fn search<const PV: bool>(&mut self, old_board: &Board, depth: usize, ply: usize, mut alpha: i32, beta: i32) -> i32 {
+        if self.search_cancelled() {
+            if old_board.in_check(old_board.side_to_move) {
+                return 0;
+            } else {
+                return eval::evaluate_board(old_board);
+            }
+        }
+
         self.update_killer(None, ply + 2);
 
         if ply > 0 && (old_board.half_move_counter >= 100 || self.past_boards.iter().filter(|p| **p == old_board.zobrist_key).count() == 2) {
