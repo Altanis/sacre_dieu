@@ -148,7 +148,7 @@ impl Searcher {
 
     /// Searches for a move with the highest evaluation with a fixed depth and a hard time limit.
     pub fn search<const PV: bool>(&mut self, old_board: &Board, depth: usize, ply: usize, mut alpha: i32, beta: i32) -> i32 {
-        if self.search_cancelled() {
+        if self.max_nodes > 0 && self.nodes >= self.max_nodes as usize {
             if old_board.in_check(old_board.side_to_move) {
                 return 0;
             } else {
