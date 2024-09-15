@@ -328,7 +328,7 @@ impl Searcher {
         let mut best_score = eval;
 
         for piece_move in moves.iter() {
-            if MoveSorter::static_exchange_evaluation(board, *piece_move, -20) {
+            if !MoveSorter::static_exchange_evaluation(board, *piece_move, -20) {
                 continue;
             }
 
