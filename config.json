@@ -23,7 +23,7 @@
         "start": 1
     },
     "pgn": {
-        "file": "sprt/pgnout.txt",
+        "file": "",
         "notation": 0,
         "track_nodes": false,
         "track_seldepth": false,
@@ -36,24 +36,24 @@
         "file": ""
     },
     "sprt": {
-        "alpha": 0.05,
-        "beta": 0.05,
+        "alpha": 0.0,
+        "beta": 0.0,
         "elo0": 0.0,
-        "elo1": 10.0,
+        "elo1": 0.0,
         "model": "normalized",
-        "enabled": true
+        "enabled": false
     },
     "event_name": "Fast-Chess Tournament",
     "site": "?",
     "config_name": "",
     "output": 0,
-    "seed": 9200749055400671510,
+    "seed": 16021274206858918044,
     "variant": 0,
     "ratinginterval": 10,
     "scoreinterval": 1,
     "autosaveinterval": 20,
     "games": 2,
-    "rounds": 50000,
+    "rounds": 500,
     "concurrency": 6,
     "overhead": 0,
     "recover": false,
@@ -62,16 +62,16 @@
     "randomseed": true,
     "engines": [
         {
-            "name": "Aspect",
+            "name": "SacreDieu",
             "dir": "",
-            "cmd": "releases/v13_see",
+            "cmd": "target/release/sacre_dieu",
             "args": "",
             "options": [],
             "limit": {
                 "tc": {
-                    "increment": 50,
+                    "increment": 80,
                     "fixed_time": 0,
-                    "time": 5000,
+                    "time": 8000,
                     "moves": 0,
                     "timemargin": 0
                 },
@@ -82,16 +82,16 @@
             "recover": false
         },
         {
-            "name": "BlueGarbageBall",
+            "name": "StashBot",
             "dir": "",
-            "cmd": "releases/v12_history_heuristic",
+            "cmd": "stash-bot",
             "args": "",
             "options": [],
             "limit": {
                 "tc": {
-                    "increment": 50,
+                    "increment": 80,
                     "fixed_time": 0,
-                    "time": 5000,
+                    "time": 8000,
                     "moves": 0,
                     "timemargin": 0
                 },
@@ -103,30 +103,30 @@
         }
     ],
     "stats": {
-        "Aspect": {
-            "BlueGarbageBall": {
-                "wins": 218,
-                "losses": 199,
-                "draws": 319,
-                "penta_WW": 24,
-                "penta_WD": 91,
-                "penta_WL": 79,
-                "penta_DD": 72,
-                "penta_LD": 84,
-                "penta_LL": 18
+        "SacreDieu": {
+            "StashBot": {
+                "wins": 195,
+                "losses": 66,
+                "draws": 75,
+                "penta_WW": 57,
+                "penta_WD": 39,
+                "penta_WL": 42,
+                "penta_DD": 8,
+                "penta_LD": 20,
+                "penta_LL": 2
             }
         },
-        "BlueGarbageBall": {
-            "Aspect": {
-                "wins": 488,
-                "losses": 569,
-                "draws": 625,
-                "penta_WW": 61,
-                "penta_WD": 166,
-                "penta_WL": 200,
-                "penta_DD": 126,
-                "penta_LD": 207,
-                "penta_LL": 81
+        "StashBot": {
+            "SacreDieu": {
+                "wins": 92,
+                "losses": 388,
+                "draws": 184,
+                "penta_WW": 9,
+                "penta_WD": 23,
+                "penta_WL": 51,
+                "penta_DD": 24,
+                "penta_LD": 113,
+                "penta_LL": 112
             }
         }
     }

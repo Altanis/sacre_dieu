@@ -41,7 +41,7 @@ A UCI compliant chess engine that may or may not be French.
 - [x] Soft TM
 - [x] Improving Heuristic
 - [x] Quiescent SEE Pruning
-- [ ] PVS SEE Pruning
+- [x] PVS SEE Pruning
 - [ ] Continuation History
 - [ ] Capture History
 - [ ] History Pruning

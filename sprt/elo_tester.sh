@@ -1,5 +1,5 @@
 fastchess/fastchess \
-  -engine name=SacreDieu cmd=releases/v11_fixed_history_heuristic \
+  -engine name=SacreDieu cmd=target/release/sacre_dieu \
   -engine name=StashBot cmd=stash-bot \
   -games 2 -rounds 500 \
   -each proto=uci tc=8+0.08 \
