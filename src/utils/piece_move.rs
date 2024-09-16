@@ -1,5 +1,5 @@
 use arrayvec::ArrayVec;
-use strum::IntoEnumIterator;
+use strum::{EnumCount, IntoEnumIterator};
 
 use crate::engine::search::Searcher;
 
@@ -98,14 +98,16 @@ impl Move {
     }
 }
 
+pub type ContinuationHistoryTable = [[[[[[i32; 64]; PieceType::COUNT]; 2]; 64]; PieceType::COUNT]; 2];
+
 /// A struct which sorts necessary move ordering
 /// score constants and tables of vital move ordering
 /// information.
 pub struct MoveSorter {
     /// A history table which tracks move scores for quiet beta cutoffs.
     pub history_table: [[[i32; 64]; 64]; 2],
-    /// A killer table which tracks quiet moves and their plies if they fail high.
-    pub killer_table: [Option<Move>; MAX_DEPTH + 4]
+    /// A history table how good a move is in response to another.
+    pub continuation_history: ContinuationHistoryTable
 }
 
 impl MoveSorter {
@@ -113,7 +115,7 @@ impl MoveSorter {
     pub fn new() -> Self {
         Self {
             history_table: [[[0; 64]; 64]; 2],
-            killer_table: [None; MAX_DEPTH as usize + 4]
+            continuation_history: [[[[[[0; 64]; PieceType::COUNT]; 2]; 64]; PieceType::COUNT]; 2]
         }
     }
 

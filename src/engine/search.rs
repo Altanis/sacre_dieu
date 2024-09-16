@@ -10,6 +10,8 @@ use super::eval;
 pub struct SearchEntry {
     /// The killer move at the ply.
     pub killer_move: Option<Move>,
+    /// The move played at the ply.
+    pub played_move: Option<Move>,
     /// The static evaluation at the ply.
     pub static_eval: i32
 }
@@ -87,6 +89,11 @@ impl Searcher {
     /// Updates a static eval at a ply in the search stack.
     pub fn update_static_eval(&mut self, eval: i32, ply: usize) {
         self.search_stack[ply].static_eval = eval;
+    }
+
+    /// Updates the played move at a ply in the search stack.
+    pub fn update_played_move(&mut self, played_move: Option<Move>, ply: usize) {
+        self.search_stack[ply].played_move = played_move;
     }
 
     /// Searches for a move with a time constraint.
@@ -188,8 +195,8 @@ impl Searcher {
             false
         } else {
             let current_ply = self.get_search_entry(ply).expect("couldnt find search entry tf").static_eval;
-            let two_ply_back = self.get_search_entry(ply - 2).unwrap_or(SearchEntry { static_eval: WORST_EVAL, killer_move: None }).static_eval;
-            let four_ply_back = self.get_search_entry(ply - 2).unwrap_or(SearchEntry { static_eval: WORST_EVAL, killer_move: None }).static_eval;
+            let two_ply_back = self.get_search_entry(ply - 2).map_or(WORST_EVAL, |e| e.static_eval);
+            let four_ply_back = self.get_search_entry(ply - 4).map_or(WORST_EVAL, |e| e.static_eval);
 
             current_ply > two_ply_back || current_ply > four_ply_back
         };

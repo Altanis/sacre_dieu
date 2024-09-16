@@ -42,7 +42,7 @@ A UCI compliant chess engine that may or may not be French.
 - [x] Improving Heuristic
 - [x] Quiescent SEE Pruning
 - [x] PVS SEE Pruning
-- [ ] Continuation History
+- [x] Continuation History
 - [ ] Capture History
 - [ ] History Pruning
 - [ ] Singular Extensions
