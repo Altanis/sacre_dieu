@@ -2,8 +2,17 @@ use std::{sync::{atomic::{AtomicBool, Ordering}, Arc}, time::{Duration, Instant}
 
 use arrayvec::ArrayVec;
 
-use crate::utils::{board::Board, consts::{BEST_EVAL, LMR_MOVE_THRESHOLD, LMR_REDUCTION_BASE, LMR_REDUCTION_DIVISOR, LMR_REDUCTION_TABLE, MAX_DEPTH, RFP_DEPTH, RFP_THRESHOLD, SHALLOWEST_PROVEN_LOSS, WORST_EVAL}, piece_move::{Move, MoveArray, MoveFlags, MoveSorter}, transposition_table::{EvaluationType, TTEntry, TranspositionTable}};
+use crate::utils::{board::Board, consts::{BEST_EVAL, LMR_MOVE_THRESHOLD, LMR_REDUCTION_BASE, LMR_REDUCTION_DIVISOR, LMR_REDUCTION_TABLE, MAX_DEPTH, RFP_DEPTH, RFP_THRESHOLD, SHALLOWEST_PROVEN_LOSS, WORST_EVAL}, piece::{Piece, PieceColor, PieceType}, piece_move::{Move, MoveArray, MoveFlags, MoveSorter}, transposition_table::{EvaluationType, TTEntry, TranspositionTable}};
 use super::eval;
+
+/// A struct representing a played move.
+#[derive(Debug, Clone)]
+pub struct MovePlayed {
+    /// The played move.
+    pub played_move: Move,
+    /// The piece moved.
+    pub piece_moved: Piece
+}
 
 /// An entry in the search stack.
 #[derive(Debug, Default, Clone)]
@@ -11,7 +20,7 @@ pub struct SearchEntry {
     /// The killer move at the ply.
     pub killer_move: Option<Move>,
     /// The move played at the ply.
-    pub played_move: Option<Move>,
+    pub played_move: Option<MovePlayed>,
     /// The static evaluation at the ply.
     pub static_eval: i32
 }
@@ -92,7 +101,7 @@ impl Searcher {
     }
 
     /// Updates the played move at a ply in the search stack.
-    pub fn update_played_move(&mut self, played_move: Option<Move>, ply: usize) {
+    pub fn update_played_move(&mut self, played_move: Option<MovePlayed>, ply: usize) {
         self.search_stack[ply].played_move = played_move;
     }
 
@@ -196,9 +205,8 @@ impl Searcher {
         } else {
             let current_ply = self.get_search_entry(ply).expect("couldnt find search entry tf").static_eval;
             let two_ply_back = self.get_search_entry(ply - 2).map_or(WORST_EVAL, |e| e.static_eval);
-            let four_ply_back = self.get_search_entry(ply - 4).map_or(WORST_EVAL, |e| e.static_eval);
 
-            current_ply > two_ply_back || current_ply > four_ply_back
+            current_ply > two_ply_back
         };
 
         // Reverse Futility Pruning
@@ -236,11 +244,15 @@ impl Searcher {
             }
 
             // PVS SEE Pruning
-            if !MoveSorter::static_exchange_evaluation(&old_board, *piece_move, if is_quiet { -50 * depth as i32 } else { -90 * depth as i32 }) {
+            if !MoveSorter::static_exchange_evaluation(old_board, *piece_move, if is_quiet { -50 * depth as i32 } else { -90 * depth as i32 }) {
                 continue;
             }
 
             let Some(board) = old_board.make_move(piece_move, false) else { continue; };
+            self.update_played_move(Some(MovePlayed {
+                played_move: *piece_move,
+                piece_moved: board.board[piece_move.end.index()].clone().expect("no piece moved?")
+            }), ply);
 
             self.nodes += 1;
             num_moves += 1;
@@ -291,10 +303,24 @@ impl Searcher {
                 if is_quiet {
                     // History Heuristic
                     let bonus = (depth * depth) as i32;
-                    self.move_sorter.update_history(old_board, *piece_move, bonus);
+                    self.move_sorter.update_butterfly_history(old_board, *piece_move, bonus);
 
                     for old_move in quiet_moves.iter() {
-                        self.move_sorter.update_history(old_board, *old_move, -bonus);
+                        self.move_sorter.update_butterfly_history(old_board, *old_move, -bonus);
+                    }
+
+                    // Continuation History Heuristic
+                    if let Some(entry) = self.get_search_entry(ply - 1) && let Some(last_played_move) = entry.played_move {
+                        let played_move = MovePlayed {
+                            played_move: *piece_move,
+                            piece_moved: board.board[piece_move.end.index()].clone().expect("no piece moved (2)?")
+                        };
+
+                        self.move_sorter.update_cont_history(last_played_move.clone(), played_move.clone(), bonus);
+
+                        for old_move in quiet_moves.iter() {
+                            self.move_sorter.update_cont_history(last_played_move.clone(), played_move.clone(), -bonus);
+                        }
                     }
 
                     // Killer Heuristic

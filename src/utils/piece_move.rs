@@ -1,7 +1,7 @@
 use arrayvec::ArrayVec;
 use strum::{EnumCount, IntoEnumIterator};
 
-use crate::engine::search::Searcher;
+use crate::engine::search::{MovePlayed, Searcher};
 
 use super::{board::{Bitboard, Board}, consts::{get_bishop_mask, get_rook_mask, BEST_EVAL, BISHOP_MAGICS, BISHOP_VALUE, BLACK_PAWN_MASK, KING_VALUE, KNIGHT_MASKS, KNIGHT_VALUE, MAX_DEPTH, MAX_LEGAL_MOVES, PAWN_VALUE, QUEEN_VALUE, ROOK_MAGICS, ROOK_VALUE, WHITE_PAWN_MASK, WORST_EVAL}, piece::{PieceColor, PieceType, Tile}};
 
@@ -98,39 +98,69 @@ impl Move {
     }
 }
 
-// pub type ContinuationHistoryTable = [[[[[[i32; 64]; PieceType::COUNT]; 2]; 64]; PieceType::COUNT]; 2];
+/// A struct storing a bunch of different history tables.
+pub struct HistoryTables {
+    /// A history table which tracks move scores for quiet beta cutoffs.
+    pub butterfly: [[[i32; 64]; 64]; 2],
+    /// A history table how good a move is in response to another.
+    pub continuation: [[[[[[i32; 64]; PieceType::COUNT]; 2]; 64]; PieceType::COUNT]; 2]
+}
+
+impl Default for HistoryTables {
+    fn default() -> Self {
+        Self {
+            butterfly: [[[0; 64]; 64]; 2],
+            continuation: [[[[[[0; 64]; PieceType::COUNT]; 2]; 64]; PieceType::COUNT]; 2]
+        }
+    }
+}
 
 /// A struct which sorts necessary move ordering
 /// score constants and tables of vital move ordering
 /// information.
 pub struct MoveSorter {
-    /// A history table which tracks move scores for quiet beta cutoffs.
-    pub history_table: [[[i32; 64]; 64]; 2],
-    // A history table how good a move is in response to another.
-    // pub continuation_history: ContinuationHistoryTable
+    /// A bunch of different history tables.
+    pub history_tables: Box<HistoryTables>
 }
 
 impl MoveSorter {
     /// Creates a new move sorter.
     pub fn new() -> Self {
         Self {
-            history_table: [[[0; 64]; 64]; 2],
-            // continuation_history: [[[[[[0; 64]; PieceType::COUNT]; 2]; 64]; PieceType::COUNT]; 2]
+            history_tables: Box::new(HistoryTables::default())
         }
     }
 
     /// Gets a move score from history.
-    pub fn get_history(&self, board: &Board, piece_move: Move) -> i32 {
-        self.history_table[board.side_to_move as usize][piece_move.initial.index()][piece_move.end.index()]
+    pub fn get_butterfly_history(&self, board: &Board, piece_move: Move) -> i32 {
+        self.history_tables.butterfly[board.side_to_move as usize][piece_move.initial.index()][piece_move.end.index()]
     }
 
     /// Updates a move score in the history table.
-    pub fn update_history(&mut self, board: &Board, piece_move: Move, bonus: i32) {
+    pub fn update_butterfly_history(&mut self, board: &Board, piece_move: Move, bonus: i32) {
         let clamped_bonus = bonus.clamp(-16384, 16384);
-        let old_value = self.get_history(board, piece_move);
+        let old_value = self.get_butterfly_history(board, piece_move);
 
-        self.history_table[board.side_to_move as usize][piece_move.initial.index()][piece_move.end.index()]
+        self.history_tables.butterfly[board.side_to_move as usize][piece_move.initial.index()][piece_move.end.index()]
             += clamped_bonus - old_value * clamped_bonus.abs() / 16384;
+    }
+
+    /// Gets a value from conntinuation history.
+    pub fn get_cont_history(&self, prev_move: MovePlayed, new_move: MovePlayed) -> i32 {
+        self.history_tables.continuation
+            [prev_move.piece_moved.piece_color as usize][prev_move.piece_moved.piece_type as usize][prev_move.played_move.end.index()]
+            [new_move.piece_moved.piece_color as usize][new_move.piece_moved.piece_type as usize][new_move.played_move.end.index()]
+    }
+
+    /// Gets a value from conntinuation history.
+    pub fn update_cont_history(&mut self, prev_move: MovePlayed, new_move: MovePlayed, bonus: i32) {
+        let clamped_bonus = bonus.clamp(-16384, 16384);
+        let old_value = self.get_cont_history(prev_move.clone(), new_move.clone());
+
+        self.history_tables.continuation
+            [prev_move.piece_moved.piece_color as usize][prev_move.piece_moved.piece_type as usize][prev_move.played_move.end.index()]
+            [new_move.piece_moved.piece_color as usize][new_move.piece_moved.piece_type as usize][new_move.played_move.end.index()]
+        += clamped_bonus - old_value * clamped_bonus.abs() / 16384;
     }
 
     /// Orders moves based off guesses.
@@ -182,12 +212,22 @@ impl MoveSorter {
         if is_quiet {
             // History + Killer Heuristics
             let killer_move = searcher.get_search_entry(ply).expect("expected killer move at ply in move ordering").killer_move;
-            let history_score = self.get_history(board, piece_move);
+            let butterfly_score = self.get_butterfly_history(board, piece_move);
+            let mut continuation_score = 0;
+
+            if let Some(entry) = searcher.get_search_entry(ply - 1) && let Some(last_played_move) = entry.played_move {
+                let new_played_move = MovePlayed {
+                    played_move: piece_move,
+                    piece_moved: board.board[piece_move.initial.index()].clone().expect("no piece moved (3)?")
+                };
+
+                continuation_score = self.get_cont_history(last_played_move, new_played_move);
+            }
 
             if killer_move == Some(piece_move) {
-                return Self::KILLER_MOVE + history_score;
+                return Self::KILLER_MOVE + butterfly_score + continuation_score;
             } else {
-                return Self::QUIET_MOVE + history_score;
+                return Self::QUIET_MOVE + butterfly_score + continuation_score;
             }
         }
 
