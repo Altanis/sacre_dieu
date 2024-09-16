@@ -98,7 +98,7 @@ impl Move {
     }
 }
 
-pub type ContinuationHistoryTable = [[[[[[i32; 64]; PieceType::COUNT]; 2]; 64]; PieceType::COUNT]; 2];
+// pub type ContinuationHistoryTable = [[[[[[i32; 64]; PieceType::COUNT]; 2]; 64]; PieceType::COUNT]; 2];
 
 /// A struct which sorts necessary move ordering
 /// score constants and tables of vital move ordering
@@ -106,8 +106,8 @@ pub type ContinuationHistoryTable = [[[[[[i32; 64]; PieceType::COUNT]; 2]; 64]; 
 pub struct MoveSorter {
     /// A history table which tracks move scores for quiet beta cutoffs.
     pub history_table: [[[i32; 64]; 64]; 2],
-    /// A history table how good a move is in response to another.
-    pub continuation_history: ContinuationHistoryTable
+    // A history table how good a move is in response to another.
+    // pub continuation_history: ContinuationHistoryTable
 }
 
 impl MoveSorter {
@@ -115,7 +115,7 @@ impl MoveSorter {
     pub fn new() -> Self {
         Self {
             history_table: [[[0; 64]; 64]; 2],
-            continuation_history: [[[[[[0; 64]; PieceType::COUNT]; 2]; 64]; PieceType::COUNT]; 2]
+            // continuation_history: [[[[[[0; 64]; PieceType::COUNT]; 2]; 64]; PieceType::COUNT]; 2]
         }
     }
 
