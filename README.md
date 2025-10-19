@@ -4,7 +4,8 @@
     <img src="./assets/icon.png" alt="sacredieu logo" height="200" width="200" />
 </a>
 
-A UCI compliant chess engine that may or may not be French.
+A UCI compliant chess engine that may or may not be French. It is ~2200 ELO (determined by fighting other engines; it can comfortably beat engines below 2200 ELO).
+
 <!-- todo improving lmr, reduction in pv node -->
 
 ## Features
