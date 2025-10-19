@@ -5,3 +5,5 @@ lichess-bot
 fenmaker/venv
 OpenBench
 ./sacre_dieu
+stash-bot
+config.json

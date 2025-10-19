@@ -184,35 +184,37 @@ position fen rn1qk2r/ppp1bppp/4pn2/6Bb/2BP4/2N2N1P/PPP2PP1/R2QK2R w KQkq - 0 1 m
 go nodes 110949";
 
 fn main() {
-    std::env::set_var("RUST_BACKTRACE", "1");
+    unsafe {
+        std::env::set_var("RUST_BACKTRACE", "1");
+    }
 
     let args: Vec<String> = std::env::args().collect();
     if args.get(1) == Some(&"bench".to_string()) {
         let mut searcher = Searcher::new(Duration::MAX, Duration::MAX, 5, Arc::new(AtomicBool::new(false)));
-        let mut npsa = vec![];
-        let mut nodes = 0;
+        let mut total_nodes = 0;
+        let mut total_time = 0.0;
+        let mut count = 0;
     
         for pos in POSITIONS.iter() {
             searcher.nodes = 0;
+            searcher.max_depth = 10;
     
             let board = Board::new(pos);
     
-            let time = std::time::Instant::now();
+            let start_time = std::time::Instant::now();
             searcher.search_timed(&board);
-            let _end = time.elapsed();
-            let end = _end.as_secs_f64();
+            let elapsed_time = start_time.elapsed().as_secs_f64();
     
-            nodes += searcher.nodes;
-    
-            let nps = searcher.nodes as f64 / (if end == 0.0 { 1.0 } else { end });
-            npsa.push(nps);
+            total_nodes += searcher.nodes;
+            total_time += elapsed_time;
+            count += 1;
         }
     
-        let avg_nps = npsa.iter().sum::<f64>() / npsa.len() as f64;
-        println!("{} nodes {} nps", nodes, avg_nps as u64);
-
+        let avg_nps = if total_time > 0.0 { total_nodes as f64 / total_time } else { 0.0 };
+        println!("{} nodes {} nps", total_nodes, avg_nps as u64);
+    
         std::process::exit(0);
-    }
+    }    
 
     let stop_signal = Arc::new(AtomicBool::new(false));
     let stop_signal_clone = stop_signal.clone();
