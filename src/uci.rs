@@ -1,10 +1,11 @@
 use std::{sync::{atomic::{AtomicBool, Ordering}, mpsc::{Receiver, Sender}, Arc}, time::{Duration, Instant}};
 use arrayvec::ArrayVec;
+use rand::Rng;
 
 use crate::{engine::search::{SearchEntry, Searcher}, utils::{board::Board, consts::{BEST_EVAL, DEEPEST_PROVEN_LOSS, DEEPEST_PROVEN_WIN, MAX_DEPTH, SHALLOWEST_PROVEN_LOSS, SHALLOWEST_PROVEN_WIN, WORST_EVAL}, piece::PieceColor, piece_move::{Move, MoveFlags, MoveSorter}}};
 
 /// The overhead of communicating a selected move to the GUI, in milliseconds
-pub const MOVE_OVERHEAD: u64 = 10;
+pub const MOVE_OVERHEAD: u64 = 1000;
 
 #[derive(Debug)]
 pub enum UCICommands {
@@ -166,12 +167,6 @@ pub fn handle_board(receiver: Receiver<UCICommands>, stop_signal: Arc<AtomicBool
                     // Iterative deepening until time limit reached.
                     searcher.hard_tm = Duration::from_millis(time_limit as u64);
                     eval = searcher.search_timed(&board);
-                } else if engine_time_left != 0 {
-                    // Iterative deepening using soft and hard time limits.
-                    searcher.soft_tm = Duration::from_millis(engine_time_left / 20 + engine_inc_left / 2);
-                    searcher.hard_tm = Duration::from_millis(engine_time_left / 4);
-
-                    eval = searcher.search_timed(&board);
                 } else if depth != -1 {
                     // Search up to a specified depth.
                     searcher.max_depth = depth as usize;
@@ -179,6 +174,30 @@ pub fn handle_board(receiver: Receiver<UCICommands>, stop_signal: Arc<AtomicBool
                 } else if max_nodes != -1 {
                     // Search up to a specified node count.
                     searcher.max_nodes = max_nodes;
+                    eval = searcher.search_timed(&board);
+                } else if engine_time_left != 0 {
+                    // Iterative deepening using soft and hard time limits.
+                    let t_ms  = engine_time_left as f64;
+                    let inc_ms = engine_inc_left as f64;
+
+                    const MIN_SOFT_MS: f64 = 1.0;
+                    const MIN_HARD_MS: f64 = 2.0;
+
+                    let mut soft_ms = t_ms / 20.0 + inc_ms / 2.0;
+                    let mut hard_ms = t_ms / 4.0;
+
+                    soft_ms = soft_ms.max(MIN_SOFT_MS);
+                    hard_ms = hard_ms.max(MIN_HARD_MS);
+
+                    if hard_ms < soft_ms {
+                        hard_ms = (soft_ms + 1.0).max(MIN_HARD_MS);
+                    }
+
+                    hard_ms = hard_ms.min(t_ms);
+
+                    searcher.soft_tm = std::time::Duration::from_secs_f64(soft_ms / 1000.0);
+                    searcher.hard_tm = std::time::Duration::from_secs_f64(hard_ms / 1000.0);
+
                     eval = searcher.search_timed(&board);
                 } else {
                     // Iterative deepening until `stop` is sent (or depth 127 is reached).
@@ -191,29 +210,32 @@ pub fn handle_board(receiver: Receiver<UCICommands>, stop_signal: Arc<AtomicBool
                 let ms_time = timer.elapsed().as_millis();
                 let nps = (nodes as f64 / (ms_time as f64 / 1000.0)) as u64;
 
-                if let Some(best_move) = searcher.best_move {
-                    board = board.make_move(&best_move, false).unwrap();
-
-                    if board.half_move_counter == 0 {
-                        searcher.past_boards.clear();
-                    }
-                    
-                    searcher.past_boards.push(board.zobrist_key);
-
-                    if (SHALLOWEST_PROVEN_LOSS..=DEEPEST_PROVEN_LOSS).contains(&eval) {
-                        let mate_in = (SHALLOWEST_PROVEN_LOSS - eval) / 2;
-                        reply(&format!("info depth {} score mate {} time {} nodes {} nps {}", depth, mate_in, ms_time, nodes, nps));
-                    } else if (DEEPEST_PROVEN_WIN..=SHALLOWEST_PROVEN_WIN).contains(&eval) {
-                        let mate_in = (SHALLOWEST_PROVEN_WIN - eval) / 2;
-                        reply(&format!("info depth {} score mate {} time {} nodes {} nps {}", depth, mate_in, ms_time, nodes, nps));
-                    } else {
-                        reply(&format!("info depth {} score cp {} time {} nodes {} nps {}", depth, eval, ms_time, nodes, nps));
-                    }
-
-                    reply(&format!("bestmove {}", best_move.to_uci()));
-                } else {
-                    panic!("null move");
+                if searcher.best_move.is_none() {
+                    let mut moves = ArrayVec::new();
+                    board.generate_moves(&mut moves, false);
+                    searcher.best_move = Some(moves[rand::thread_rng().gen_range(0..moves.len())]);
                 }
+
+                let best_move = searcher.best_move.unwrap();
+                board = board.make_move(&best_move, false).unwrap();
+
+                if board.half_move_counter == 0 {
+                    searcher.past_boards.clear();
+                }
+                
+                searcher.past_boards.push(board.zobrist_key);
+
+                if (SHALLOWEST_PROVEN_LOSS..=DEEPEST_PROVEN_LOSS).contains(&eval) {
+                    let mate_in = (SHALLOWEST_PROVEN_LOSS - eval) / 2;
+                    reply(&format!("info depth {} score mate {} time {} nodes {} nps {}", depth, mate_in, ms_time, nodes, nps));
+                } else if (DEEPEST_PROVEN_WIN..=SHALLOWEST_PROVEN_WIN).contains(&eval) {
+                    let mate_in = (SHALLOWEST_PROVEN_WIN - eval) / 2;
+                    reply(&format!("info depth {} score mate {} time {} nodes {} nps {}", depth, mate_in, ms_time, nodes, nps));
+                } else {
+                    reply(&format!("info depth {} score cp {} time {} nodes {} nps {}", depth, eval, ms_time, nodes, nps));
+                }
+
+                reply(&format!("bestmove {}", best_move.to_uci()));
             },
             UCICommands::PrintBoard => {
                 dbg!(&board);
