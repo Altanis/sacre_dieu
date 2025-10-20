@@ -3,6 +3,9 @@ use arrayvec::ArrayVec;
 
 use crate::{engine::search::{SearchEntry, Searcher}, utils::{board::Board, consts::{BEST_EVAL, DEEPEST_PROVEN_LOSS, DEEPEST_PROVEN_WIN, MAX_DEPTH, SHALLOWEST_PROVEN_LOSS, SHALLOWEST_PROVEN_WIN, WORST_EVAL}, piece::PieceColor, piece_move::{Move, MoveFlags, MoveSorter}}};
 
+/// The overhead of communicating a selected move to the GUI, in milliseconds
+pub const MOVE_OVERHEAD: u64 = 10;
+
 #[derive(Debug)]
 pub enum UCICommands {
     SetPosition(String),
@@ -146,7 +149,7 @@ pub fn handle_board(receiver: Receiver<UCICommands>, stop_signal: Arc<AtomicBool
             UCICommands::StartSearch(time_limit, depth, white_time, winc, black_time, binc, max_nodes) => {
                 stop_signal.store(false, Ordering::Relaxed);
 
-                let engine_time_left = if board.side_to_move == PieceColor::White { white_time } else { black_time };
+                let engine_time_left = ((if board.side_to_move == PieceColor::White { white_time } else { black_time }).saturating_sub(MOVE_OVERHEAD)).max(1);
                 let engine_inc_left = if board.side_to_move == PieceColor::White { winc } else { binc };
                 
                 let mut eval = 0;
