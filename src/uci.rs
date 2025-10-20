@@ -149,7 +149,7 @@ pub fn handle_board(receiver: Receiver<UCICommands>, stop_signal: Arc<AtomicBool
             UCICommands::StartSearch(time_limit, depth, white_time, winc, black_time, binc, max_nodes) => {
                 stop_signal.store(false, Ordering::Relaxed);
 
-                let engine_time_left = ((if board.side_to_move == PieceColor::White { white_time } else { black_time }) - MOVE_OVERHEAD).max(1);
+                let engine_time_left = ((if board.side_to_move == PieceColor::White { white_time } else { black_time }).saturating_sub(MOVE_OVERHEAD)).max(1);
                 let engine_inc_left = if board.side_to_move == PieceColor::White { winc } else { binc };
                 
                 let mut eval = 0;
