@@ -186,7 +186,7 @@ pub fn handle_board(receiver: Receiver<UCICommands>, stop_signal: Arc<AtomicBool
                 let (timer, nodes, depth) = (searcher.timer, searcher.nodes, searcher.depth);
 
                 let ms_time = timer.elapsed().as_millis();
-                let nps = nodes as f64 / (ms_time as f64 / 1000.0);
+                let nps = (nodes as f64 / (ms_time as f64 / 1000.0)) as u64;
 
                 if let Some(best_move) = searcher.best_move {
                     board = board.make_move(&best_move, false).unwrap();

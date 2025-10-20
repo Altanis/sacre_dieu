@@ -845,7 +845,7 @@ rnbqkb1r/ppppp1pp/7n/4Pp2/8/8/PPPP1PPP/RNBQKBNR w KQkq f6 0 3 ;D5 11139762";
                 let time = time.elapsed();
     
                 if nodes == expected_nodes {
-                    println!("{}", format!("[PASS] Time: {:?}, Depth: {}, Nodes: {}, NPS: {}", time, depth, nodes, (nodes as f64) / time.as_secs_f64()).green());
+                    println!("{}", format!("[PASS] Time: {:?}, Depth: {}, Nodes: {}, NPS: {}", time, depth, nodes, ((nodes as f64) / time.as_secs_f64()) as u64).green());
                 } else {
                     panic!("{}", format!("[FAIL] Time: {:?}, Depth: {}, Nodes: {}, Expected Nodes: {}", time, depth, nodes, expected_nodes).red());
                 }
