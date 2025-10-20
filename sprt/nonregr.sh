@@ -1,0 +1,11 @@
+fastchess/fastchess \
+  -engine name=Aspect cmd=sacre_dieu_MOVE_OVERHEAD \
+  -engine name=BlueGarbageBall cmd=sacre_dieu \
+  -games 2 -rounds 50000 \
+  -pgnout "sprt/pgnout.txt" \
+  -sprt elo0=-5 elo1=0 alpha=0.05 beta=0.05 \
+  -each proto=uci tc=1+0.01 \
+  -openings order=random file="sprt/openings.epd" format=epd \
+  -randomseed \
+  -concurrency 6 \
+  -ratinginterval 10 \s
