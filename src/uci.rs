@@ -5,7 +5,7 @@ use rand::Rng;
 use crate::{engine::search::{SearchEntry, Searcher}, utils::{board::Board, consts::{BEST_EVAL, DEEPEST_PROVEN_LOSS, DEEPEST_PROVEN_WIN, MAX_DEPTH, SHALLOWEST_PROVEN_LOSS, SHALLOWEST_PROVEN_WIN, WORST_EVAL}, piece::PieceColor, piece_move::{Move, MoveFlags, MoveSorter}}};
 
 /// The overhead of communicating a selected move to the GUI, in milliseconds
-pub const MOVE_OVERHEAD: u64 = 1000;
+pub const MOVE_OVERHEAD: u64 = 10;
 
 #[derive(Debug)]
 pub enum UCICommands {
