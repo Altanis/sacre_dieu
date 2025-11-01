@@ -3,6 +3,8 @@ use strum::EnumCount;
 
 use super::{board::Bitboard, piece::{PieceType, PieceColor}};
 
+pub const PRETTY_PRINT: bool = false;
+
 pub const MAX_LEGAL_MOVES: usize = 218;
 pub const PIECE_INDICES: usize = PieceType::COUNT + PieceColor::COUNT;
 

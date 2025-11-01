@@ -1,3 +1,7 @@
+use crate::utils::consts::PRETTY_PRINT;
+use crate::utils::pretty::print_pretty_board;
+use colored::Colorize;
+
 use std::{sync::{atomic::{AtomicBool, Ordering}, mpsc::{Receiver, Sender}, Arc}, time::{Duration, Instant}};
 use arrayvec::ArrayVec;
 use rand::Rng;
@@ -99,6 +103,11 @@ pub fn handle_command(command: &str, sender: Sender<UCICommands>, stop_signal: A
             }
 
             // dbg!(time, depth, wtime, winc, btime, binc);
+            if PRETTY_PRINT {
+                println!("\n{} {}", "🔎".yellow(), "Starting search...".bold());
+                println!("{}", "-------------------------------------------------------------------------------------------------".dimmed());
+            }
+
             sender.send(UCICommands::StartSearch(time, depth, wtime, winc, btime, binc, nodes)).expect("failed to send startsearch cmd");
         },
         "d" => sender.send(UCICommands::PrintBoard).expect("failed to send printboard cmd"),
@@ -217,8 +226,29 @@ pub fn handle_board(receiver: Receiver<UCICommands>, stop_signal: Arc<AtomicBool
                 }
 
                 let best_move = searcher.best_move.unwrap();
-                board = board.make_move(&best_move, false).unwrap();
 
+                if PRETTY_PRINT {
+                    println!("{}", "-------------------------------------------------------------------------------------------------".dimmed());
+                    println!("{} {}", "💡".yellow(), "Search complete.".bold());
+
+                    if (SHALLOWEST_PROVEN_LOSS..=DEEPEST_PROVEN_LOSS).contains(&eval) {
+                        let mate_in = (SHALLOWEST_PROVEN_LOSS - eval) / 2;
+                        println!("{} Final Score: {}", "📊".cyan(), format!("Mate in {}", mate_in).red().bold());
+                    } else if (DEEPEST_PROVEN_WIN..=SHALLOWEST_PROVEN_WIN).contains(&eval) {
+                        let mate_in = (SHALLOWEST_PROVEN_WIN - eval) / 2;
+                        println!("{} Final Score: {}", "📊".cyan(), format!("Mate in {}", mate_in).green().bold());
+                    } else {
+                        println!("{} Final Score: {}", "📊".cyan(), format!("{:.2}", eval as f32 / 100.0).cyan());
+                    }
+
+                    println!("{} Best Move: {}", "♟️".cyan(), best_move.to_uci().yellow().bold());
+                    println!("{} Depth Searched: {}", "🧠".cyan(), depth);
+                    println!("{} Nodes Searched: {}", "🌳".cyan(), nodes);
+                    println!("{} Nodes/Second: {}", "⚡".cyan(), nps);
+                    println!("{} Time Elapsed: {}ms", "⏱️".cyan(), ms_time);
+                }
+
+                board = board.make_move(&best_move, false).unwrap();
                 if board.half_move_counter == 0 {
                     searcher.past_boards.clear();
                 }
@@ -236,14 +266,18 @@ pub fn handle_board(receiver: Receiver<UCICommands>, stop_signal: Arc<AtomicBool
                 }
 
                 reply(&format!("bestmove {}", best_move.to_uci()));
+
+                if PRETTY_PRINT {
+                    print_pretty_board(&board);
+                }
             },
-            UCICommands::PrintBoard => {
-                dbg!(&board);
-            }
+            UCICommands::PrintBoard => if PRETTY_PRINT { print_pretty_board(&board); } else { dbg!(&board); }
         }
     }
 }
 
 pub fn reply(response: &str) {
-    println!("{}", response);
+    if !PRETTY_PRINT {
+        println!("{}", response);
+    }
 }
