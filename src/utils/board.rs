@@ -5,6 +5,8 @@ use arrayvec::ArrayVec;
 use super::{consts::{get_piece_type, MagicEntry, MAX_LEGAL_MOVES, PIECE_INDICES}, piece::*, piece_move::{Move, MoveArray, MoveFlags}, zobrist::{generate_zobrist_hash, ZOBRIST_CASTLING_KEYS, ZOBRIST_EN_PASSANT_KEYS, ZOBRIST_SIDE_TO_MOVE}};
 use colored::Colorize;
 
+use crate::engine::nnue::Accumulator;
+
 /// A type representing an array of bitboards for tracking piece/color state.
 pub type PositionalBitboard = [Bitboard; PIECE_INDICES];
 
@@ -155,7 +157,10 @@ pub struct Board {
     pub half_move_counter: u8,
 
     /// A zobrist key representing the state of the board.
-    pub zobrist_key: u64
+    pub zobrist_key: u64,
+
+    /// The incrementally updated NNUE first layer.
+    pub accumulator: Accumulator
 }
 
 impl Board {
@@ -167,7 +172,8 @@ impl Board {
             en_passant: None,
             board: std::array::from_fn(|_| None),
             half_move_counter: 0,
-            zobrist_key: 0
+            zobrist_key: 0,
+            accumulator: Accumulator::empty()
         }
     }
 
@@ -280,6 +286,12 @@ impl Board {
 
         chess_board.half_move_counter = half_move_counter.parse::<u8>().expect("half move counter is not a valid u8 number");
         chess_board.zobrist_key = generate_zobrist_hash(&chess_board);
+
+        // The position was built by hand, so seed the accumulator once here;
+        // every subsequent position comes from make_move and is incremental.
+        let mut accumulator = Accumulator::empty();
+        accumulator.refresh(&chess_board);
+        chess_board.accumulator = accumulator;
         
         chess_board
     }
@@ -336,6 +348,7 @@ impl Board {
         if let Some(ref piece) = end_piece {
             board.piece_bitboard[piece.piece_type.to_index()].clear_bit(piece_move.end);
             board.piece_bitboard[piece.piece_color.to_index()].clear_bit(piece_move.end);
+            board.accumulator.remove(piece.piece_type, piece.piece_color, piece_move.end.index());
 
             if !perft { // Ignore zobrist hashing.
                 board.zobrist_key ^= piece.zobrist_key(piece_move.end.index());
@@ -346,6 +359,8 @@ impl Board {
         board.piece_bitboard[initial_piece.piece_color.to_index()].clear_bit(piece_move.initial);
         board.piece_bitboard[initial_piece.piece_type.to_index()].set_bit(piece_move.end);
         board.piece_bitboard[initial_piece.piece_color.to_index()].set_bit(piece_move.end);
+        board.accumulator.remove(initial_piece.piece_type, initial_piece.piece_color, piece_move.initial.index());
+        board.accumulator.add(initial_piece.piece_type, initial_piece.piece_color, piece_move.end.index());
 
         if !perft { // Ignore zobrist hashing.
             board.zobrist_key ^= initial_piece.zobrist_key(piece_move.initial.index());
@@ -399,12 +414,14 @@ impl Board {
 
                 board.piece_bitboard[piece.piece_type.to_index()].clear_bit(capture_position);
                 board.piece_bitboard[piece.piece_color.to_index()].clear_bit(capture_position);
+                let (ep_type, ep_color) = (piece.piece_type, piece.piece_color);
 
                 if !perft { // Ignore zobrist hashing.
                     board.zobrist_key ^= piece.zobrist_key(capture_position.index());
                 }
 
                 board.board[capture_position.index()] = None;
+                board.accumulator.remove(ep_type, ep_color, capture_position.index());
             },
             MoveFlags::Castling => {
                 board.castle_rights[initial_piece.piece_color.to_index()] = CastleRights::None;
@@ -426,6 +443,8 @@ impl Board {
                 board.piece_bitboard[rook_piece.piece_color.to_index()].clear_bit(old_rook_tile);
                 board.piece_bitboard[rook_piece.piece_type.to_index()].set_bit(new_rook_tile);
                 board.piece_bitboard[rook_piece.piece_color.to_index()].set_bit(new_rook_tile);
+                board.accumulator.remove(PieceType::Rook, rook_piece.piece_color, old_rook_tile.index());
+                board.accumulator.add(PieceType::Rook, rook_piece.piece_color, new_rook_tile.index());
 
                 if !perft { // Ignore zobrist hashing.
                     board.zobrist_key ^= rook_piece.zobrist_key(old_rook_tile.index());
@@ -438,6 +457,8 @@ impl Board {
             MoveFlags::KnightPromotion => {
                 board.piece_bitboard[initial_piece.piece_type.to_index()].clear_bit(piece_move.end);
                 board.piece_bitboard[PieceType::Knight.to_index()].set_bit(piece_move.end);
+                board.accumulator.remove(initial_piece.piece_type, initial_piece.piece_color, piece_move.end.index());
+                board.accumulator.add(PieceType::Knight, initial_piece.piece_color, piece_move.end.index());
 
                 let knight = Piece::new(PieceType::Knight, initial_piece.piece_color);
 
@@ -451,6 +472,8 @@ impl Board {
             MoveFlags::BishopPromotion => {
                 board.piece_bitboard[initial_piece.piece_type.to_index()].clear_bit(piece_move.end);
                 board.piece_bitboard[PieceType::Bishop.to_index()].set_bit(piece_move.end);
+                board.accumulator.remove(initial_piece.piece_type, initial_piece.piece_color, piece_move.end.index());
+                board.accumulator.add(PieceType::Bishop, initial_piece.piece_color, piece_move.end.index());
 
                 let bishop = Piece::new(PieceType::Bishop, initial_piece.piece_color);
 
@@ -464,6 +487,8 @@ impl Board {
             MoveFlags::RookPromotion => {
                 board.piece_bitboard[initial_piece.piece_type.to_index()].clear_bit(piece_move.end);
                 board.piece_bitboard[PieceType::Rook.to_index()].set_bit(piece_move.end);
+                board.accumulator.remove(initial_piece.piece_type, initial_piece.piece_color, piece_move.end.index());
+                board.accumulator.add(PieceType::Rook, initial_piece.piece_color, piece_move.end.index());
 
                 let rook = Piece::new(PieceType::Rook, initial_piece.piece_color);
 
@@ -477,6 +502,8 @@ impl Board {
             MoveFlags::QueenPromotion => {
                 board.piece_bitboard[initial_piece.piece_type.to_index()].clear_bit(piece_move.end);
                 board.piece_bitboard[PieceType::Queen.to_index()].set_bit(piece_move.end);
+                board.accumulator.remove(initial_piece.piece_type, initial_piece.piece_color, piece_move.end.index());
+                board.accumulator.add(PieceType::Queen, initial_piece.piece_color, piece_move.end.index());
 
                 let queen = Piece::new(PieceType::Queen, initial_piece.piece_color);
 

@@ -3,7 +3,7 @@ use std::{sync::{atomic::{AtomicBool, Ordering}, Arc}, time::{Duration, Instant}
 use arrayvec::ArrayVec;
 
 use crate::utils::{board::Board, consts::{BEST_EVAL, LMR_MOVE_THRESHOLD, LMR_REDUCTION_BASE, LMR_REDUCTION_DIVISOR, LMR_REDUCTION_TABLE, MAX_DEPTH, PRETTY_PRINT, RFP_DEPTH, RFP_THRESHOLD, SHALLOWEST_PROVEN_LOSS, WORST_EVAL}, piece_move::{Move, MoveArray, MoveFlags, MoveSorter}, transposition_table::{EvaluationType, TTEntry, TranspositionTable}};
-use super::eval;
+use super::{eval, nnue};
 
 /// An entry in the search stack.
 #[derive(Debug, Default, Clone)]
@@ -156,7 +156,7 @@ impl Searcher {
             if old_board.in_check(old_board.side_to_move) {
                 return 0;
             } else {
-                return eval::evaluate_board(old_board);
+                return nnue::evaluate_board(old_board);
             }
         }
 
@@ -184,7 +184,7 @@ impl Searcher {
         }
 
         let in_check = old_board.in_check(old_board.side_to_move);
-        let static_eval = eval::evaluate_board(old_board);
+        let static_eval = nnue::evaluate_board(old_board);
 
         self.update_static_eval(static_eval, ply);
 
@@ -323,7 +323,7 @@ impl Searcher {
     }
 
     pub fn quiescence_search(&mut self, board: &Board, ply: usize, mut alpha: i32, beta: i32) -> i32 {
-        let eval = eval::evaluate_board(board);
+        let eval = nnue::evaluate_board(board);
         if eval >= beta {
             return eval;
         }

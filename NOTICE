@@ -1,0 +1,24 @@
+This product includes material from third-party projects.
+
+------------------------------------------------------------------------
+net.bin
+------------------------------------------------------------------------
+
+The neural network weights in `net.bin` are a quantized export of
+`nnue.npz` from the prophet-nnue project:
+
+    https://github.com/UE2020/prophet-nnue
+    Copyright (c) the prophet-nnue authors
+    Licensed under the Mozilla Public License, Version 2.0
+
+A copy of the MPL 2.0 is available at https://mozilla.org/MPL/2.0/.
+
+The export was produced by loading `nnue.npz` with prophet-nnue's own
+`QuantizedNNUE::from_built_model`, then writing the resulting i16 arrays
+(input weights, input biases, hidden weights, hidden bias) as a sequence
+of u32 length-prefixed little-endian arrays. The evaluation code in
+`src/engine/nnue.rs` is an independent reimplementation of the forward
+pass and is not a copy of prophet-nnue's source.
+
+Because the MPL is a file-level copyleft, `net.bin` remains under the
+MPL 2.0 regardless of the terms applied to the rest of this repository.
