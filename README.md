@@ -25,7 +25,7 @@ A UCI compliant chess engine that may or may not be French. It is ~2200 ELO (det
     - [x] History Heuristic with Gravity
     - [x] Killer Moves
     - [x] SEE (strong)
-- [x] HCE
+- [x] HCE (superseded by NNUE, retained in `engine::eval`)
     - [x] Material Evaluation
     - [x] Piece Square Tables
 - [x] Quiescence Search (Captures + Promotions)
@@ -54,5 +54,5 @@ A UCI compliant chess engine that may or may not be French. It is ~2200 ELO (det
 - [ ] Futility Pruning
 - [ ] Quiescent Futility Pruning
 - [ ] Internal Iterative Reduction
-- [ ] NNUE
+- [x] NNUE
 - [ ] Threading
